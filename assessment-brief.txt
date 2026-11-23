@@ -1,0 +1,155 @@
+﻿Senior AI-First Software Engineer Assessment
+Part 1: About This Assessment
+Build a working product from the spec in Part 2, as you would at the start of a real project. The spec defines what it must do. How it works is yours to design and explain, and that is most of what we evaluate.
+* Effort: about 10 to 14 hours. Submit by the deadline in your email. A solid core beats a wide, shaky one.
+* Domain: modeled on Ninety (its EOS edition) and uses its terms. You don't need to know Ninety; section 2.2 covers it. Where Ninety differs, this spec wins.
+* Questions: use Ninety's help pages, YouTube and AI tools first. If still unclear, make a call and note it in your README. If you're blocked, reply to the email that sent you this brief.
+* Files: the zip attached to the email holds this brief, the seed data (seed.json) and a README with the rules report format.
+* AI tools: allowed and encouraged, but you should be able to explain any part of the project. We may follow up with a short call about your code.
+Part 2: Product Spec
+2.1 Background
+Leadership teams hold a weekly meeting to check their numbers, surface problems and agree on next steps. This product gives each team one place to track its weekly numbers (Measurables), quarterly goals (Rocks), tasks (To-Dos) and problems (Issues), and to run that meeting. It is built around a loop that repeats every week:
+* Measure: a handful of weekly Measurables show whether the business is healthy.
+* Commit: quarterly Rocks and weekly To-Dos make clear who does what, and by when.
+* Resolve: anything off track becomes an Issue, and the team solves it together in the meeting.
+Keep the loop in mind and many of your modeling and layout decisions get easier.
+Out of scope: sign-up (a seeded user switcher or simple login is enough), email, billing, integrations, Private To-Dos, Long-Term Issues, creating or editing teams, users, Measurables or Rocks (they come from the seed data), a meeting history page, and the dashed links in 2.2 (two of them are Bonus items in Part 3).
+2.2 How It Fits Together
+ How the parts of the app connect 
+
+How the parts of the app connect
+Solid links are what you build: an off-track Score becomes an Issue, solving an Issue produces To-Dos, and the Level 10 Meeting runs through all three. Dashed links show how Ninety connects the rest, so the domain makes sense; you don't build them. The last closed week means the full week before the current one.
+These are the names used in Ninety's EOS edition. Ninety's newer edition calls them KPI, Weekly Team Meeting and RDR (Raise, Discuss, Resolve).
+2.3 Core Journey
+A team's week, from one user's view:
+1. Sign in as a seeded user and pick one of your teams.
+2. Before the meeting, enter the last closed week's scores, mark To-Dos done, and add Issues.
+3. An Admin or Team Member starts the Level 10 Meeting and becomes the facilitator. Teammates join from their own browsers.
+4. Scorecard (5 min): the team reviews the last closed week's scores and uses Make it an Issue on off-track ones.
+5. IDS (60 min): the team works the Issues list in order, solves Issues, and adds To-Dos for follow-up.
+6. Conclude (10 min): the team recaps the new To-Dos, attendees rate the meeting, and the facilitator ends it.
+7. Attendees see the meeting's summary.
+2.4 Users and Roles
+Each user has one company-wide role and belongs to one or more teams.
+Role
+	Can do
+	Admin
+	Everything a Team Member can, in every team
+	Team Member
+	Read and change data in their own teams. Start, facilitate and rate meetings. Own Measurables, Rocks, To-Dos and Issues.
+	Observer
+	Read data in their own teams and join meetings. Cannot change data, facilitate, rate or own anything.
+	2.5 Requirements by Page
+Two pages. The Scorecard and Issues sections are built once and reused on both. Seed data is the starting state. Actions are for Admins and Team Members; Observers see everything read-only. Computed values follow 2.6.
+Team Page
+A team switcher in the header lists the user's teams (every team for Admins). A team the user can't access returns an error, even by guessed ID.
+Section
+	Shows
+	Actions
+	Scorecard
+	Measurables by week for the last 13 weeks, including the current one. Each cell has a score and a status: on track, off track or pending. Names, owners, goals and units are seeded.
+	Edit a score inline (last save wins). Make it an Issue on an off-track cell: creates an Issue titled with the Measurable and week, owned by the user who clicked, or returns the existing unsolved one.
+	Issues
+	Unsolved Issues in Issue order with title, owner, priority, created time and source Measurable and week. Solved Issues, with solved time and note, viewable separately.
+	Create (title required, priority optional, owner is the creator), set priority, or solve with a required note. Add a To-Do: title, owner from the team's Admins and Team Members, due in 7 days, linked to the Issue.
+	To-Dos
+	Title, owner, due date, done time and source Issue. Overdue ones flagged. Last closed week's completion rate.
+	Mark done, or undo.
+	Rocks
+	Current quarter's Rocks with owner, status and progress. Each Rock expands to list its Milestones (due date, done or not). All seeded.
+	None (read-only)
+	Meeting Page
+* Layout: the agenda (Scorecard 5 min, IDS 60 min, Conclude 10 min), the section timer and attendees. Scorecard and IDS reuse the Team page sections with all their actions. Conclude shows the meeting's new To-Dos and ratings.
+* Control: an Admin or Team Member starts the meeting and becomes the facilitator. One active meeting per team. Anyone who can read the team can join. Only the facilitator advances or ends it, at any time.
+* Rating: in Conclude, each attending Admin or Team Member rates 1 to 10 and can change it until the end.
+* Sync: everyone sees the same section and timer, and changes reach all attendees within about a second. The server owns the timer; an overrun section shows as over time and doesn't advance. Late joins, refreshes and reconnects (facilitator included) get the current state. No facilitator handoff needed.
+* Summary: at the end, attendees see Measurable statuses for the last closed week, Issues solved and To-Dos created during the meeting, attendees and the rating. The API also returns any ended meeting's summary, including the 2 seeded ones.
+2.6 Business Rules
+These have exact answers and are checked against the seed data.
+Time
+* A week runs Monday 00:00:00 to Sunday 23:59:59 in the company time zone (America/Chicago). A quarter is a calendar quarter.
+* Due dates are calendar dates in company time. A To-Do is overdue when it is not done and its due date is before today (the date of APP_NOW in company time).
+* Round half up (12.5% → 13%, 8.25 → 8.3).
+Rule
+	Definition
+	Edge cases
+	Measurable status
+	Compare the week's score with the goal: at least, at most, between, or exactly
+	Boundaries are on track. A closed week with no score is off track. The current week with no score is pending.
+	To-Do completion rate
+	To-Dos done by the end of a week ÷ To-Dos due that week. Target is 90%.
+	Exactly 90% meets target. Done after its due week counts as not done. Zero due means no rate.
+	Rock status
+	Complete if its seeded status is Complete. Off-track if its seeded status is Off-track, or if an unfinished Milestone is past due. Otherwise On-track.
+	A Milestone due today is not past due. No Milestones means the seeded status alone.
+	Rock progress
+	Completed Milestones ÷ total Milestones, as a whole percent
+	No Milestones: 0%, or 100% once Complete
+	Issue order
+	Priority 5 first, down to 1. Within a priority, oldest first.
+	No priority comes last
+	Meeting rating
+	Average of submitted ratings, to one decimal
+	Attendees who didn't rate are excluded. No ratings means no score.
+	No duplicate Issues
+	Make it an Issue on a Measurable and week that already has an unsolved linked Issue returns that Issue
+	Holds when two people click at the same moment
+	2.7 Technical Requirements
+* Stack: Next.js with TypeScript, shadcn/ui and Tailwind. FastAPI. Postgres with migrations.
+* Authorization: every role rule in 2.4 is enforced on the server. Hiding a button is not authorization.
+* Data integrity: database constraints reject invalid data, not only the app.
+* Time: store timestamps in UTC. Read "now" from APP_NOW, not the system clock, and default it to 2026-11-11T15:00:00Z (Wednesday, November 11, 2026, 9:00 AM Chicago), the seed's "now".
+* Operations: docker compose up starts the whole stack with seed data loaded. The seed script is safe to rerun.
+* API: a documented REST API serves everything in 2.5.
+* Seed data: in seed.json, in the zip attached to the email. 1 company (America/Chicago), 3 teams, 9 users across all three roles (some on more than one team), Measurables with 13 weeks of scores, Q4 2026 Rocks and Milestones, To-Dos, Issues, and 2 ended meetings with their attendees and ratings. Some records sit minutes from a week boundary on purpose.
+2.8 Decisions Left to You
+Explain each, with its tradeoffs, in your decision record:
+1. The data model, including how Issues and To-Dos link to their sources.
+2. The API design.
+3. The real-time transport, and how meeting state is owned and recovered.
+4. How Make it an Issue stays duplicate-free under concurrent requests.
+5. How you would keep past meeting summaries unchanged after later edits. Describing this is enough.
+Part 3: Deliverables and Evaluation
+Submit by replying to the email that sent you this brief, by the deadline in that email. Your reply links to:
+1. A public Git repo with a README (2 pages or less) covering setup, the test command, assumptions, known limitations, and which AI tools you used and where.
+2. The working app, started with docker compose up.
+3. A rules report: one documented command that prints every computed value in 2.6 for a freshly seeded database as JSON, in the format in the zip's README. We'll also run it at other dates, so compute every value from the data. Commit its output as rules_report.json.
+4. A one-page decision record covering 2.8.
+5. A video of up to 7 minutes (Loom or unlisted YouTube) showing the core journey with two browsers in the same meeting, and your main decisions.
+Make sure every link opens without requesting access. Submissions we can't open can't be reviewed.
+Tests run unattended from one documented command, against the seed data and a fixed clock:
+Layer
+	Minimum
+	Rule tests
+	Every rule in 2.6, with at least one boundary case each
+	API tests
+	A Team Member reading another team's data is refused. An Observer write is refused. Concurrent Make it an Issue requests return one Issue.
+	End-to-end
+	One Playwright test with two browsers: the facilitator advances the agenda and the second browser follows
+	Include a short note on your fixture and clock strategy, and one failure artifact (such as a Playwright trace).
+Evaluation
+Area
+	Weight
+	What we look for
+	Data model and API design
+	20%
+	Clean entities and links, deliberate handling of weeks and time zones, a consistent and documented API
+	Real-time, concurrency and rule correctness
+	20%
+	Meetings stay in sync across browsers, no duplicate Issues, and the rules report matches our answer key
+	Usability
+	15%
+	The core journey is easy to follow, and the meeting page is readable under time pressure
+	Security
+	15%
+	Roles and team boundaries enforced on the server and proven by tests, with inputs validated at the API
+	Testing
+	15%
+	The suite runs unattended and covers the rules, authorization, duplicates and real-time sync
+	Frontend code quality
+	10%
+	Organized, typed code with server state, live updates and forms handled coherently
+	Documentation and video
+	5%
+	Clear README, decision record and walkthrough that explain tradeoffs and limitations
+	Bonus (only if the core is solid): Make it an Issue from an off-track Rock or an overdue To-Do (with the same no-duplicates rule), lost-update protection for scores and Issue priority, an audit trail, or a note on supporting 1,000 companies.
