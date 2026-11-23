@@ -1,19 +1,20 @@
-from fastapi import Depends, Header
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.errors import UnauthorizedError
-from app.modules.user.factory import get_user_service
+from app.modules.auth.factory import get_auth_service
+from app.modules.auth.service import AuthService
 from app.modules.user.models import User
-from app.modules.user.service import UserService
+
+# auto_error=False so a missing header yields our own 401 body, not FastAPI's 403.
+_bearer = HTTPBearer(auto_error=False, description="Token from POST /api/auth/login")
 
 
 def get_current_user(
-    x_user_id: str | None = Header(default=None),
-    users: UserService = Depends(get_user_service),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    auth: AuthService = Depends(get_auth_service),
 ) -> User:
-    """Seeded user switcher: the caller identifies itself with X-User-Id."""
-    if not x_user_id:
-        raise UnauthorizedError("Missing X-User-Id header")
-    user = users.repository.get(x_user_id)
-    if user is None:
-        raise UnauthorizedError("Unknown user")
-    return user
+    """Authentication gate. Resolves the bearer token to a User or raises 401."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise UnauthorizedError("Authentication required")
+    return auth.user_from_token(credentials.credentials)

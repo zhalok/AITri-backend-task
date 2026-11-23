@@ -12,3 +12,9 @@ class UserService(BaseService[User]):
 
     def get_many(self, ids: list[str]) -> list[User]:
         return self.repository.get_many(ids)
+
+    def get_by_email(self, email: str) -> User | None:
+        return self.repository.get_by_email(email)
+
+    def find(self, user_id: str) -> User | None:
+        return self.repository.get(user_id)

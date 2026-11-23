@@ -12,8 +12,3 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("", response_model=list[UserOut])
 def list_users(actor: User = Depends(get_current_user), uc: UserUseCase = Depends(get_user_usecase)):
     return uc.list_users(actor)
-
-
-@router.get("/me", response_model=UserOut)
-def me(actor: User = Depends(get_current_user)):
-    return actor

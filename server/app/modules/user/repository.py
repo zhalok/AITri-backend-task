@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.base import BaseRepository
 from app.modules.user.models import User
@@ -12,3 +12,6 @@ class UserRepository(BaseRepository[User]):
 
     def get_many(self, ids: list[str]) -> list[User]:
         return list(self.session.scalars(select(User).where(User.id.in_(ids))))
+
+    def get_by_email(self, email: str) -> User | None:
+        return self.session.scalars(select(User).where(func.lower(User.email) == email.lower())).first()
