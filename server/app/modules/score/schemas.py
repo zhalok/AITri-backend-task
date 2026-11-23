@@ -1,0 +1,27 @@
+from datetime import date
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.modules.measurable.schemas import MeasurableOut
+
+
+class ScoreIn(BaseModel):
+    value: Decimal = Field(allow_inf_nan=False, max_digits=18, decimal_places=4)
+
+
+class ScoreOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    measurable_id: str
+    week_start: date
+    value: Decimal
+
+
+class ScorecardRow(BaseModel):
+    measurable: MeasurableOut
+    scores: dict[date, Decimal | None]
+
+
+class ScorecardOut(BaseModel):
+    weeks: list[date]
+    rows: list[ScorecardRow]

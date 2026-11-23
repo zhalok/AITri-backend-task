@@ -1,0 +1,23 @@
+from datetime import date, datetime
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, StringConstraints
+
+
+class TodoCreate(BaseModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+    owner_id: str
+
+
+class TodoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    team_id: str
+    owner_id: str
+    title: str
+    due_date: date
+    done_at: datetime | None
+    created_at: datetime
+    source_issue_id: str | None
+    created_in_meeting_id: str | None
+    is_overdue: bool = False
