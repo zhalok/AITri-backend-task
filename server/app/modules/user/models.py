@@ -17,7 +17,6 @@ class User(Base):
     __table_args__ = (CheckConstraint("role in ('admin','team_member','observer')", name="ck_users_role"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    company_id: Mapped[str] = mapped_column(ForeignKey("companies.id"))
     name: Mapped[str] = mapped_column(String(200))
     email: Mapped[str] = mapped_column(String(320), unique=True)
     role: Mapped[str] = mapped_column(String(20))

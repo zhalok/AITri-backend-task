@@ -8,7 +8,6 @@ class Team(Base):
     __tablename__ = "teams"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    company_id: Mapped[str] = mapped_column(ForeignKey("companies.id"))
     name: Mapped[str] = mapped_column(String(200))
 
 
