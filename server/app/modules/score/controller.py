@@ -27,3 +27,18 @@ def set_score(
     uc: ScoreUseCase = Depends(get_score_usecase),
 ):
     return uc.set_score(actor, measurable_id, week_start, body.value)
+
+
+admin_router = APIRouter(prefix="/admin", tags=["admin: any team"])
+
+
+@admin_router.get("/teams/{team_id}/scorecard", response_model=ScorecardOut)
+def admin_get_scorecard(team_id: str, actor: User = Depends(get_current_user), uc: ScoreUseCase = Depends(get_score_usecase)):
+    return uc.admin_get_scorecard(actor, team_id)
+
+
+@admin_router.put("/measurables/{measurable_id}/scores/{week_start}", response_model=ScoreOut)
+def admin_set_score(
+    measurable_id: str, week_start: date, body: ScoreIn, actor: User = Depends(get_current_user), uc: ScoreUseCase = Depends(get_score_usecase)
+):
+    return uc.admin_set_score(actor, measurable_id, week_start, body.value)

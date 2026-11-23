@@ -20,7 +20,3 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(200))
     email: Mapped[str] = mapped_column(String(320), unique=True)
     role: Mapped[str] = mapped_column(String(20))
-
-    @property
-    def can_write(self) -> bool:
-        return self.role != Role.OBSERVER

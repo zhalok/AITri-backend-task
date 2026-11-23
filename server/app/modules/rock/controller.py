@@ -13,3 +13,11 @@ router = APIRouter(tags=["rocks"])
 def list_rocks(team_id: str, actor: User = Depends(get_current_user), uc: RockUseCase = Depends(get_rock_usecase)):
     """Current quarter's Rocks with their Milestones (read-only)."""
     return uc.list_current_rocks(actor, team_id)
+
+
+admin_router = APIRouter(prefix="/admin", tags=["admin: any team"])
+
+
+@admin_router.get("/teams/{team_id}/rocks", response_model=list[RockOut])
+def admin_list_rocks(team_id: str, actor: User = Depends(get_current_user), uc: RockUseCase = Depends(get_rock_usecase)):
+    return uc.admin_list_current_rocks(actor, team_id)

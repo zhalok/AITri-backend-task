@@ -4,12 +4,19 @@ from app.core.auth import get_current_user
 
 from app.core.errors import register_error_handlers
 from app.modules.auth.controller import router as auth_router
+from app.modules.issue.controller import admin_router as issue_admin_router
 from app.modules.issue.controller import router as issue_router
+from app.modules.measurable.controller import admin_router as measurable_admin_router
 from app.modules.measurable.controller import router as measurable_router
+from app.modules.meeting.controller import admin_router as meeting_admin_router
 from app.modules.meeting.controller import router as meeting_router
+from app.modules.rock.controller import admin_router as rock_admin_router
 from app.modules.rock.controller import router as rock_router
+from app.modules.score.controller import admin_router as score_admin_router
 from app.modules.score.controller import router as score_router
+from app.modules.team.controller import admin_router as team_admin_router
 from app.modules.team.controller import router as team_router
+from app.modules.todo.controller import admin_router as todo_admin_router
 from app.modules.todo.controller import router as todo_router
 from app.modules.user.controller import router as user_router
 
@@ -31,6 +38,15 @@ def create_app() -> FastAPI:
     app.include_router(issue_router, prefix="/api", dependencies=protected)
     app.include_router(todo_router, prefix="/api", dependencies=protected)
     app.include_router(meeting_router, prefix="/api", dependencies=protected)
+
+    # Wide scope (any team, no membership): Admin-only actions, one endpoint per narrow endpoint.
+    app.include_router(team_admin_router, prefix="/api", dependencies=protected)
+    app.include_router(measurable_admin_router, prefix="/api", dependencies=protected)
+    app.include_router(score_admin_router, prefix="/api", dependencies=protected)
+    app.include_router(rock_admin_router, prefix="/api", dependencies=protected)
+    app.include_router(issue_admin_router, prefix="/api", dependencies=protected)
+    app.include_router(todo_admin_router, prefix="/api", dependencies=protected)
+    app.include_router(meeting_admin_router, prefix="/api", dependencies=protected)
     return app
 
 

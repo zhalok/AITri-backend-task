@@ -10,8 +10,9 @@ from app.modules.measurable.factory import get_measurable_service
 from app.modules.measurable.service import MeasurableService
 from app.modules.meeting.factory import get_meeting_service
 from app.modules.meeting.service import MeetingService
-from app.modules.team.factory import get_access_policy
-from app.modules.team.policy import AccessPolicy
+from app.modules.team.factory import get_team_scope
+from app.core.rbac import Rbac, get_rbac
+from app.modules.team.scope import TeamScope
 
 
 def get_issue_repository(session: Session = Depends(get_session)) -> IssueRepository:
@@ -26,7 +27,7 @@ def get_issue_usecase(
     issues: IssueService = Depends(get_issue_service),
     measurables: MeasurableService = Depends(get_measurable_service),
     meetings: MeetingService = Depends(get_meeting_service),
-    policy: AccessPolicy = Depends(get_access_policy),
+    rbac: Rbac = Depends(get_rbac), scope: TeamScope = Depends(get_team_scope),
     clock: Clock = Depends(get_clock),
 ) -> IssueUseCase:
-    return IssueUseCase(issues, measurables, meetings, policy, clock)
+    return IssueUseCase(issues, measurables, meetings, rbac, scope, clock)

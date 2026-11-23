@@ -14,3 +14,11 @@ def list_measurables(
     team_id: str, actor: User = Depends(get_current_user), uc: MeasurableUseCase = Depends(get_measurable_usecase)
 ):
     return uc.list_for_team(actor, team_id)
+
+
+admin_router = APIRouter(prefix="/admin", tags=["admin: any team"])
+
+
+@admin_router.get("/teams/{team_id}/measurables", response_model=list[MeasurableOut])
+def admin_list_measurables(team_id: str, actor: User = Depends(get_current_user), uc: MeasurableUseCase = Depends(get_measurable_usecase)):
+    return uc.admin_list_for_team(actor, team_id)

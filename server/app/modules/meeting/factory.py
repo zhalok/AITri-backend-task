@@ -6,8 +6,9 @@ from app.core.database import get_session
 from app.modules.meeting.repository import MeetingRepository
 from app.modules.meeting.service import MeetingService
 from app.modules.meeting.usecase import MeetingUseCase
-from app.modules.team.factory import get_access_policy
-from app.modules.team.policy import AccessPolicy
+from app.modules.team.factory import get_team_scope
+from app.core.rbac import Rbac, get_rbac
+from app.modules.team.scope import TeamScope
 
 
 def get_meeting_repository(session: Session = Depends(get_session)) -> MeetingRepository:
@@ -21,6 +22,6 @@ def get_meeting_service(
 
 
 def get_meeting_usecase(
-    meetings: MeetingService = Depends(get_meeting_service), policy: AccessPolicy = Depends(get_access_policy)
+    meetings: MeetingService = Depends(get_meeting_service), rbac: Rbac = Depends(get_rbac), scope: TeamScope = Depends(get_team_scope)
 ) -> MeetingUseCase:
-    return MeetingUseCase(meetings, policy)
+    return MeetingUseCase(meetings, rbac, scope)

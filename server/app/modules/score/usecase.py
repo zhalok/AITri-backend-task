@@ -5,21 +5,43 @@ from app.modules.measurable.service import MeasurableService
 from app.modules.score.models import Score
 from app.modules.score.schemas import ScorecardOut, ScorecardRow
 from app.modules.score.service import ScoreService
-from app.modules.team.policy import AccessPolicy
+from app.core.permissions import Action
+from app.core.rbac import Rbac
+from app.modules.team.scope import TeamScope
 from app.modules.user.models import User
 
 
 class ScoreUseCase:
     def __init__(
-        self, scores: ScoreService, measurables: MeasurableService, policy: AccessPolicy, clock: Clock
+        self, scores: ScoreService, measurables: MeasurableService, rbac: Rbac, scope: TeamScope, clock: Clock
     ):
         self.scores = scores
         self.measurables = measurables
-        self.policy = policy
+        self.rbac = rbac
+        self.scope = scope
         self.clock = clock
 
     def get_scorecard(self, actor: User, team_id: str) -> ScorecardOut:
-        self.policy.require_read(actor, team_id)
+        self.rbac.require(actor, Action.VIEW_SCORECARD)
+        self.scope.require_member(actor, team_id)
+        return self._scorecard(team_id)
+
+    def admin_get_scorecard(self, actor: User, team_id: str) -> ScorecardOut:
+        self.rbac.require(actor, Action.ANY_TEAM_VIEW_SCORECARD)
+        return self._scorecard(team_id)
+
+    def set_score(self, actor: User, measurable_id: str, week_start: date, value) -> Score:
+        self.rbac.require(actor, Action.EDIT_SCORE)
+        measurable = self.measurables.get_or_raise(measurable_id)
+        self.scope.require_member(actor, measurable.team_id)
+        return self.scores.set_score(measurable_id, week_start, value)
+
+    def admin_set_score(self, actor: User, measurable_id: str, week_start: date, value) -> Score:
+        self.rbac.require(actor, Action.ANY_TEAM_EDIT_SCORE)
+        self.measurables.get_or_raise(measurable_id)
+        return self.scores.set_score(measurable_id, week_start, value)
+
+    def _scorecard(self, team_id: str) -> ScorecardOut:
         weeks = self.clock.last_n_weeks(13)
         measurables = self.measurables.list_for_team(team_id)
         by_m = self.scores.scores_by_measurable([m.id for m in measurables], weeks)
@@ -27,8 +49,3 @@ class ScoreUseCase:
             ScorecardRow(measurable=m, scores={w: by_m[m.id].get(w) for w in weeks}) for m in measurables
         ]
         return ScorecardOut(weeks=weeks, rows=rows)
-
-    def set_score(self, actor: User, measurable_id: str, week_start: date, value) -> Score:
-        measurable = self.measurables.get_or_raise(measurable_id)
-        self.policy.require_write(actor, measurable.team_id)
-        return self.scores.set_score(measurable_id, week_start, value)

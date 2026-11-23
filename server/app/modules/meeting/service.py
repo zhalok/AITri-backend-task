@@ -55,8 +55,6 @@ class MeetingService(BaseService[Meeting]):
 
     def rate(self, meeting: Meeting, user: User, rating: int) -> None:
         self._require_active(meeting)
-        if not user.can_write:
-            raise ForbiddenError("Observers cannot rate meetings")
         if meeting.current_section != Section.CONCLUDE:
             raise ConflictError("Ratings open in the Conclude section")
         if user.id not in self.repository.attendee_ids(meeting.id):

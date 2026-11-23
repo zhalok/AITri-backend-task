@@ -55,3 +55,37 @@ def make_it_an_issue(
     issue, created = uc.make_it_an_issue(actor, measurable_id, week_start)
     response.status_code = 201 if created else 200
     return issue
+
+
+admin_router = APIRouter(prefix="/admin", tags=["admin: any team"])
+
+
+@admin_router.get("/teams/{team_id}/issues", response_model=list[IssueOut])
+def admin_list_issues(
+    team_id: str, status: Literal["unsolved", "solved"] = "unsolved", actor: User = Depends(get_current_user), uc: IssueUseCase = Depends(get_issue_usecase)
+):
+    return uc.admin_list_issues(actor, team_id, solved=status == "solved")
+
+
+@admin_router.post("/teams/{team_id}/issues", response_model=IssueOut, status_code=201)
+def admin_create_issue(team_id: str, body: IssueCreate, actor: User = Depends(get_current_user), uc: IssueUseCase = Depends(get_issue_usecase)):
+    return uc.admin_create(actor, team_id, body.title, body.priority)
+
+
+@admin_router.patch("/issues/{issue_id}/priority", response_model=IssueOut)
+def admin_set_priority(issue_id: str, body: IssuePriorityUpdate, actor: User = Depends(get_current_user), uc: IssueUseCase = Depends(get_issue_usecase)):
+    return uc.admin_set_priority(actor, issue_id, body.priority)
+
+
+@admin_router.post("/issues/{issue_id}/solve", response_model=IssueOut)
+def admin_solve_issue(issue_id: str, body: IssueSolve, actor: User = Depends(get_current_user), uc: IssueUseCase = Depends(get_issue_usecase)):
+    return uc.admin_solve(actor, issue_id, body.note)
+
+
+@admin_router.post("/measurables/{measurable_id}/scores/{week_start}/issue", response_model=IssueOut)
+def admin_make_it_an_issue(
+    measurable_id: str, week_start: date, response: Response, actor: User = Depends(get_current_user), uc: IssueUseCase = Depends(get_issue_usecase)
+):
+    issue, created = uc.admin_make_it_an_issue(actor, measurable_id, week_start)
+    response.status_code = 201 if created else 200
+    return issue

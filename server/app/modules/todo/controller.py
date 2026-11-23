@@ -24,9 +24,32 @@ def create_todo_for_issue(
 
 @router.post("/todos/{todo_id}/done", response_model=TodoOut)
 def mark_done(todo_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
-    return uc.set_done(actor, todo_id, True)
+    return uc.mark_done(actor, todo_id)
 
 
 @router.delete("/todos/{todo_id}/done", response_model=TodoOut)
 def undo_done(todo_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
-    return uc.set_done(actor, todo_id, False)
+    return uc.undo_done(actor, todo_id)
+
+
+admin_router = APIRouter(prefix="/admin", tags=["admin: any team"])
+
+
+@admin_router.get("/teams/{team_id}/todos", response_model=list[TodoOut])
+def admin_list_todos(team_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
+    return uc.admin_list_todos(actor, team_id)
+
+
+@admin_router.post("/issues/{issue_id}/todos", response_model=TodoOut, status_code=201)
+def admin_create_todo_for_issue(issue_id: str, body: TodoCreate, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
+    return uc.admin_create_for_issue(actor, issue_id, body.title, body.owner_id)
+
+
+@admin_router.post("/todos/{todo_id}/done", response_model=TodoOut)
+def admin_mark_done(todo_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
+    return uc.admin_mark_done(actor, todo_id)
+
+
+@admin_router.delete("/todos/{todo_id}/done", response_model=TodoOut)
+def admin_undo_done(todo_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
+    return uc.admin_undo_done(actor, todo_id)

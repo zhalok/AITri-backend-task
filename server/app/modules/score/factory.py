@@ -8,8 +8,9 @@ from app.modules.measurable.service import MeasurableService
 from app.modules.score.repository import ScoreRepository
 from app.modules.score.service import ScoreService
 from app.modules.score.usecase import ScoreUseCase
-from app.modules.team.factory import get_access_policy
-from app.modules.team.policy import AccessPolicy
+from app.modules.team.factory import get_team_scope
+from app.core.rbac import Rbac, get_rbac
+from app.modules.team.scope import TeamScope
 
 
 def get_score_repository(session: Session = Depends(get_session)) -> ScoreRepository:
@@ -25,7 +26,7 @@ def get_score_service(
 def get_score_usecase(
     scores: ScoreService = Depends(get_score_service),
     measurables: MeasurableService = Depends(get_measurable_service),
-    policy: AccessPolicy = Depends(get_access_policy),
+    rbac: Rbac = Depends(get_rbac), scope: TeamScope = Depends(get_team_scope),
     clock: Clock = Depends(get_clock),
 ) -> ScoreUseCase:
-    return ScoreUseCase(scores, measurables, policy, clock)
+    return ScoreUseCase(scores, measurables, rbac, scope, clock)

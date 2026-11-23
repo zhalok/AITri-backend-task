@@ -11,8 +11,15 @@ router = APIRouter(prefix="/teams", tags=["teams"])
 
 
 @router.get("", response_model=list[TeamOut])
-def list_teams(actor: User = Depends(get_current_user), uc: TeamUseCase = Depends(get_team_usecase)):
+def list_my_teams(actor: User = Depends(get_current_user), uc: TeamUseCase = Depends(get_team_usecase)):
+    """Teams the caller is a member of. Every role."""
     return uc.list_my_teams(actor)
+
+
+@router.get("/all", response_model=list[TeamOut])
+def list_all_teams(actor: User = Depends(get_current_user), uc: TeamUseCase = Depends(get_team_usecase)):
+    """Every team in the company. Admin only (403 for other roles)."""
+    return uc.list_all_teams(actor)
 
 
 @router.get("/{team_id}", response_model=TeamOut)
@@ -26,3 +33,17 @@ def list_assignable_members(
 ):
     """Admins and Team Members who can own To-Dos, Issues, etc. in this team."""
     return uc.list_assignable_members(actor, team_id)
+
+
+# Wide scope: any team, no membership needed. Admin only (each has its own ANY_TEAM_* action).
+admin_router = APIRouter(prefix="/admin/teams", tags=["admin: any team"])
+
+
+@admin_router.get("/{team_id}", response_model=TeamOut)
+def admin_get_team(team_id: str, actor: User = Depends(get_current_user), uc: TeamUseCase = Depends(get_team_usecase)):
+    return uc.admin_get_team(actor, team_id)
+
+
+@admin_router.get("/{team_id}/members", response_model=list[UserOut])
+def admin_list_members(team_id: str, actor: User = Depends(get_current_user), uc: TeamUseCase = Depends(get_team_usecase)):
+    return uc.admin_list_assignable_members(actor, team_id)

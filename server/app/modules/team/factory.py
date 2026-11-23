@@ -2,8 +2,9 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_session
-from app.modules.team.policy import AccessPolicy
+from app.core.rbac import Rbac, get_rbac
 from app.modules.team.repository import TeamRepository
+from app.modules.team.scope import TeamScope
 from app.modules.team.service import TeamService
 from app.modules.team.usecase import TeamUseCase
 
@@ -16,12 +17,13 @@ def get_team_service(repo: TeamRepository = Depends(get_team_repository)) -> Tea
     return TeamService(repo)
 
 
-def get_access_policy(teams: TeamService = Depends(get_team_service)) -> AccessPolicy:
-    return AccessPolicy(teams)
+def get_team_scope(teams: TeamService = Depends(get_team_service)) -> TeamScope:
+    return TeamScope(teams)
 
 
 def get_team_usecase(
     teams: TeamService = Depends(get_team_service),
-    policy: AccessPolicy = Depends(get_access_policy),
+    rbac: Rbac = Depends(get_rbac),
+    scope: TeamScope = Depends(get_team_scope),
 ) -> TeamUseCase:
-    return TeamUseCase(teams, policy)
+    return TeamUseCase(teams, rbac, scope)

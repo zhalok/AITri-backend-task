@@ -23,6 +23,18 @@ class TeamRepository(BaseRepository[Team]):
     def is_member(self, user_id: str, team_id: str) -> bool:
         return self.session.get(Membership, (user_id, team_id)) is not None
 
+    def list_members_of_teams(self, team_ids: list[str]) -> list[User]:
+        if not team_ids:
+            return []
+        stmt = (
+            select(User)
+            .join(Membership, Membership.user_id == User.id)
+            .where(Membership.team_id.in_(team_ids))
+            .distinct()
+            .order_by(User.name, User.id)
+        )
+        return list(self.session.scalars(stmt))
+
     def list_members(self, team_id: str) -> list[User]:
         stmt = (
             select(User)

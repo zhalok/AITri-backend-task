@@ -8,8 +8,9 @@ from app.modules.milestone.service import MilestoneService
 from app.modules.rock.repository import RockRepository
 from app.modules.rock.service import RockService
 from app.modules.rock.usecase import RockUseCase
-from app.modules.team.factory import get_access_policy
-from app.modules.team.policy import AccessPolicy
+from app.modules.team.factory import get_team_scope
+from app.core.rbac import Rbac, get_rbac
+from app.modules.team.scope import TeamScope
 
 
 def get_rock_repository(session: Session = Depends(get_session)) -> RockRepository:
@@ -23,6 +24,6 @@ def get_rock_service(repo: RockRepository = Depends(get_rock_repository), clock:
 def get_rock_usecase(
     rocks: RockService = Depends(get_rock_service),
     milestones: MilestoneService = Depends(get_milestone_service),
-    policy: AccessPolicy = Depends(get_access_policy),
+    rbac: Rbac = Depends(get_rbac), scope: TeamScope = Depends(get_team_scope),
 ) -> RockUseCase:
-    return RockUseCase(rocks, milestones, policy)
+    return RockUseCase(rocks, milestones, rbac, scope)
