@@ -10,11 +10,12 @@ class Issue(Base):
     __tablename__ = "issues"
     __table_args__ = (
         CheckConstraint("priority is null or priority between 1 and 5", name="ck_issue_priority"),
-        CheckConstraint("length(btrim(title)) > 0", name="ck_issue_title_not_blank"),
+        # \S = any non-whitespace character (btrim() alone would let tab/newline-only text through).
+        CheckConstraint(r"title ~ '\S'", name="ck_issue_title_not_blank"),
         # Solved <=> has a note and a timestamp.
         CheckConstraint(
             "(solved_at is null and resolution_note is null)"
-            " or (solved_at is not null and resolution_note is not null and length(btrim(resolution_note)) > 0)",
+            r" or (solved_at is not null and resolution_note is not null and resolution_note ~ '\S')",
             name="ck_issue_solved_has_note",
         ),
         # Source is a (Measurable, week) pair: both or neither.

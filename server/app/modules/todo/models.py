@@ -8,7 +8,7 @@ from app.core.database import Base
 
 class Todo(Base):
     __tablename__ = "todos"
-    __table_args__ = (CheckConstraint("length(btrim(title)) > 0", name="ck_todo_title_not_blank"),)
+    __table_args__ = (CheckConstraint(r"title ~ '\S'", name="ck_todo_title_not_blank"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     team_id: Mapped[str] = mapped_column(ForeignKey("teams.id"), index=True)
