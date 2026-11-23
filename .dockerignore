@@ -1,0 +1,12 @@
+.git
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.env
+**/.pytest_cache
+**/test-results
+**/playwright-report
+.claude
+.vscode
+# the backend image never needs the frontend
+client

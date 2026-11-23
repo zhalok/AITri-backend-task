@@ -16,5 +16,41 @@ services:
       timeout: 3s
       retries: 20
 
+  # The API. Not published to the host: only nginx (below) can reach it.
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: l10-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/l10
+      APP_NOW: "2026-11-11T15:00:00Z"
+      COMPANY_TIMEZONE: America/Chicago
+      JWT_SECRET: change-me-in-production-this-is-only-a-dev-default
+    expose:
+      - "8000"
+    healthcheck:  # becomes healthy once migrations and the seed have run and uvicorn is serving
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # The front end: nginx serves the built app, terminates TLS, and forwards /api to the API.
+  web:
+    build: ./client
+    container_name: l10-web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+      - "8443:443"
+    # For a real certificate, mount it here instead of the generated self-signed one:
+    # volumes:
+    #   - ./certs:/etc/nginx/certs:ro      # needs tls.crt and tls.key
+
 volumes:
   pgdata:

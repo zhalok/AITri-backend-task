@@ -1,7 +1,6 @@
 from fastapi import Depends, FastAPI
 
 from app.core.auth import get_current_user
-
 from app.core.errors import register_error_handlers
 from app.modules.auth.controller import router as auth_router
 from app.modules.issue.controller import admin_router as issue_admin_router
