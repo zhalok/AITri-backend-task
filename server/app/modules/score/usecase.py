@@ -3,8 +3,7 @@ from datetime import date
 from app.core.clock import Clock
 from app.modules.measurable.service import MeasurableService
 from app.modules.score.models import Score
-from app.modules.score.schemas import ScorecardOut, ScorecardRow
-from app.modules.score.service import ScoreService
+from app.modules.score.service import Scorecard, ScorecardLine, ScoreService
 from app.core.permissions import Action
 from app.core.rbac import Rbac
 from app.modules.team.scope import TeamScope
@@ -21,12 +20,12 @@ class ScoreUseCase:
         self.scope = scope
         self.clock = clock
 
-    def get_scorecard(self, actor: User, team_id: str) -> ScorecardOut:
+    def get_scorecard(self, actor: User, team_id: str) -> Scorecard:
         self.rbac.require(actor, Action.VIEW_SCORECARD)
         self.scope.require_member(actor, team_id)
         return self._scorecard(team_id)
 
-    def admin_get_scorecard(self, actor: User, team_id: str) -> ScorecardOut:
+    def admin_get_scorecard(self, actor: User, team_id: str) -> Scorecard:
         self.rbac.require(actor, Action.ANY_TEAM_VIEW_SCORECARD)
         return self._scorecard(team_id)
 
@@ -41,11 +40,9 @@ class ScoreUseCase:
         self.measurables.get_or_raise(measurable_id)
         return self.scores.set_score(measurable_id, week_start, value)
 
-    def _scorecard(self, team_id: str) -> ScorecardOut:
+    def _scorecard(self, team_id: str) -> Scorecard:
         weeks = self.clock.last_n_weeks(13)
         measurables = self.measurables.list_for_team(team_id)
         by_m = self.scores.scores_by_measurable([m.id for m in measurables], weeks)
-        rows = [
-            ScorecardRow(measurable=m, scores={w: by_m[m.id].get(w) for w in weeks}) for m in measurables
-        ]
-        return ScorecardOut(weeks=weeks, rows=rows)
+        lines = [ScorecardLine(measurable=m, scores={w: by_m[m.id].get(w) for w in weeks}) for m in measurables]
+        return Scorecard(weeks=weeks, lines=lines)

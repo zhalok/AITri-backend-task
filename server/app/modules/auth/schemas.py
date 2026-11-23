@@ -1,10 +1,12 @@
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, StringConstraints
 
 from app.modules.user.schemas import UserOut
 
 
 class LoginIn(BaseModel):
-    email: str = Field(min_length=3, max_length=320)
+    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=320)]
 
 
 class TokenOut(BaseModel):

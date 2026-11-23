@@ -1,10 +1,31 @@
+from dataclasses import dataclass
+from datetime import datetime
+
 from app.core.base import BaseService, new_id
 from app.core.clock import Clock
 from app.core.errors import ConflictError, DomainValidationError, ForbiddenError
 from app.modules.meeting.models import SECTION_MINUTES, SECTION_ORDER, Meeting, Section
 from app.modules.meeting.repository import MeetingRepository
-from app.modules.meeting.schemas import MeetingStateOut
 from app.modules.user.models import User
+
+
+@dataclass
+class MeetingState:
+    """Everything a client needs to render a meeting. The controller turns it into the response."""
+
+    id: str
+    team_id: str
+    facilitator_id: str
+    started_at: datetime
+    ended_at: datetime | None
+    current_section: str
+    section_started_at: datetime
+    section_duration_seconds: int
+    section_elapsed_seconds: int
+    over_time: bool
+    attendee_ids: list[str]
+    ratings: dict[str, int]
+    average_rating: float | None
 
 
 class MeetingService(BaseService[Meeting]):
@@ -44,13 +65,13 @@ class MeetingService(BaseService[Meeting]):
             raise ConflictError("Already in the last section; end the meeting instead")
         meeting.current_section = SECTION_ORDER[idx + 1]
         meeting.section_started_at = self.clock.now()
-        self.repository.session.flush()
+        self.repository.save()
         return meeting
 
     def end(self, meeting: Meeting) -> Meeting:
         self._require_active(meeting)
         meeting.ended_at = self.clock.now()
-        self.repository.session.flush()
+        self.repository.save()
         return meeting
 
     def rate(self, meeting: Meeting, user: User, rating: int) -> None:
@@ -61,7 +82,7 @@ class MeetingService(BaseService[Meeting]):
             raise ForbiddenError("Only attendees can rate")
         self.repository.upsert_rating(meeting.id, user.id, rating)
 
-    def state(self, meeting: Meeting) -> MeetingStateOut:
+    def state(self, meeting: Meeting) -> MeetingState:
         """Everything a client needs to render the meeting. The server owns the timer."""
         end = meeting.ended_at or self.clock.now()
         elapsed = max(0, int((end - meeting.section_started_at).total_seconds()))
@@ -71,7 +92,7 @@ class MeetingService(BaseService[Meeting]):
         if ratings:  # round half up to one decimal
             n = len(ratings)
             avg = ((20 * sum(ratings.values()) + n) // (2 * n)) / 10
-        return MeetingStateOut(
+        return MeetingState(
             id=meeting.id, team_id=meeting.team_id, facilitator_id=meeting.facilitator_id,
             started_at=meeting.started_at, ended_at=meeting.ended_at,
             current_section=meeting.current_section, section_started_at=meeting.section_started_at,

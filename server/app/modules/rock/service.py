@@ -1,7 +1,16 @@
+from dataclasses import dataclass
+
 from app.core.base import BaseService
 from app.core.clock import Clock
+from app.modules.milestone.models import Milestone
 from app.modules.rock.models import Rock
 from app.modules.rock.repository import RockRepository
+
+
+@dataclass
+class RockDetail:
+    rock: Rock
+    milestones: list[Milestone]
 
 
 class RockService(BaseService[Rock]):

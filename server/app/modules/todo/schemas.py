@@ -21,3 +21,9 @@ class TodoOut(BaseModel):
     source_issue_id: str | None
     created_in_meeting_id: str | None
     is_overdue: bool = False
+
+    @classmethod
+    def from_view(cls, view) -> "TodoOut":
+        out = cls.model_validate(view.todo)
+        out.is_overdue = view.is_overdue
+        return out

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -8,6 +9,13 @@ from app.modules.user.models import User
 from app.modules.user.service import UserService
 
 
+@dataclass
+class LoginResult:
+    access_token: str
+    expires_in: int
+    user: User
+
+
 class AuthService:
     def __init__(self, users: UserService, settings: Settings):
         self.users = users
@@ -15,7 +23,7 @@ class AuthService:
 
     def authenticate(self, email: str) -> User:
         """Seeded-user sign-in: the email identifies the user (no password; see decision record)."""
-        user = self.users.get_by_email(email.strip())
+        user = self.users.get_by_email(email)
         if user is None:
             raise UnauthorizedError("Unknown user")
         return user

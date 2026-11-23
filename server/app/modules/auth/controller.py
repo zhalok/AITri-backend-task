@@ -13,7 +13,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=TokenOut)
 def login(body: LoginIn, uc: AuthUseCase = Depends(get_auth_usecase)):
     """Public. Exchange a seeded user's email for a bearer token (no password)."""
-    return uc.login(body.email)
+    result = uc.login(body.email)
+    return TokenOut(access_token=result.access_token, expires_in=result.expires_in, user=result.user)
 
 
 @router.get("/me", response_model=UserOut)

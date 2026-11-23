@@ -1,10 +1,24 @@
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
 from app.core.clock import Clock
 from app.core.errors import DomainValidationError
+from app.modules.measurable.models import Measurable
 from app.modules.score.models import Score
 from app.modules.score.repository import ScoreRepository
+
+
+@dataclass
+class ScorecardLine:
+    measurable: Measurable
+    scores: dict[date, Decimal | None]
+
+
+@dataclass
+class Scorecard:
+    weeks: list[date]
+    lines: list[ScorecardLine]
 
 
 class ScoreService:

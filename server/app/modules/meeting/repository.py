@@ -21,6 +21,9 @@ class MeetingRepository(BaseRepository[Meeting]):
         stmt = select(Meeting).where(Meeting.team_id == team_id, Meeting.ended_at.is_(None))
         return self.session.scalars(stmt).first()
 
+    def save(self) -> None:
+        self.session.flush()
+
     def add_attendee(self, meeting_id: str, user_id: str) -> None:
         stmt = insert(MeetingAttendee).values(meeting_id=meeting_id, user_id=user_id).on_conflict_do_nothing()
         self.session.execute(stmt)

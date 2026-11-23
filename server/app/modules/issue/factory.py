@@ -28,6 +28,6 @@ def get_issue_usecase(
     measurables: MeasurableService = Depends(get_measurable_service),
     meetings: MeetingService = Depends(get_meeting_service),
     rbac: Rbac = Depends(get_rbac), scope: TeamScope = Depends(get_team_scope),
-    clock: Clock = Depends(get_clock),
+
 ) -> IssueUseCase:
-    return IssueUseCase(issues, measurables, meetings, rbac, scope, clock)
+    return IssueUseCase(issues, measurables, meetings, rbac, scope)

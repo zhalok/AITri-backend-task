@@ -1,9 +1,19 @@
+from dataclasses import dataclass
 from datetime import timedelta
 
 from app.core.base import BaseService, new_id
 from app.core.clock import Clock
+from app.core.errors import DomainValidationError
 from app.modules.todo.models import Todo
 from app.modules.todo.repository import TodoRepository
+
+
+@dataclass
+class TodoView:
+    """A To-Do plus the values computed from the clock."""
+
+    todo: Todo
+    is_overdue: bool
 
 
 class TodoService(BaseService[Todo]):
@@ -20,9 +30,15 @@ class TodoService(BaseService[Todo]):
     def is_overdue(self, todo: Todo) -> bool:
         return todo.done_at is None and todo.due_date < self.clock.today()
 
+    def view(self, todo: Todo) -> TodoView:
+        return TodoView(todo=todo, is_overdue=self.is_overdue(todo))
+
     def create_for_issue(
-        self, team_id: str, issue_id: str, owner_id: str, title: str, meeting_id: str | None
+        self, team_id: str, issue_id: str, owner_id: str, title: str, meeting_id: str | None,
+        eligible_owner_ids: set[str],
     ) -> Todo:
+        if owner_id not in eligible_owner_ids:
+            raise DomainValidationError("Owner must be an Admin or Team Member of this team")
         todo = Todo(
             id=new_id(), team_id=team_id, owner_id=owner_id, title=title,
             due_date=self.clock.today() + timedelta(days=7),

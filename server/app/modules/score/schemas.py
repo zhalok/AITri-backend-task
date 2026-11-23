@@ -25,3 +25,8 @@ class ScorecardRow(BaseModel):
 class ScorecardOut(BaseModel):
     weeks: list[date]
     rows: list[ScorecardRow]
+
+    @classmethod
+    def from_scorecard(cls, card) -> "ScorecardOut":
+        rows = [ScorecardRow(measurable=l.measurable, scores=l.scores) for l in card.lines]
+        return cls(weeks=card.weeks, rows=rows)

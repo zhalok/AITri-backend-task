@@ -1,7 +1,5 @@
 from datetime import date
 
-from app.core.clock import Clock
-from app.core.errors import DomainValidationError
 from app.modules.issue.models import Issue
 from app.modules.issue.service import IssueService
 from app.modules.measurable.service import MeasurableService
@@ -20,14 +18,12 @@ class IssueUseCase:
         meetings: MeetingService,
         rbac: Rbac,
         scope: TeamScope,
-        clock: Clock,
     ):
         self.issues = issues
         self.measurables = measurables
         self.meetings = meetings
         self.rbac = rbac
         self.scope = scope
-        self.clock = clock
 
     def list_issues(self, actor: User, team_id: str, solved: bool) -> list[Issue]:
         self.rbac.require(actor, Action.LIST_ISSUES)
@@ -73,20 +69,13 @@ class IssueUseCase:
         self.rbac.require(actor, Action.MAKE_ISSUE_FROM_SCORE)
         measurable = self.measurables.get_or_raise(measurable_id)
         self.scope.require_member(actor, measurable.team_id)
-        return self._make_it_an_issue(actor, measurable, week_start)
+        return self.issues.make_it_an_issue(actor.id, measurable, week_start)
 
     def admin_make_it_an_issue(self, actor: User, measurable_id: str, week_start: date) -> tuple[Issue, bool]:
         self.rbac.require(actor, Action.ANY_TEAM_MAKE_ISSUE_FROM_SCORE)
         measurable = self.measurables.get_or_raise(measurable_id)
-        return self._make_it_an_issue(actor, measurable, week_start)
+        return self.issues.make_it_an_issue(actor.id, measurable, week_start)
 
     def _solve(self, issue: Issue, note: str) -> Issue:
         active = self.meetings.get_active_for_team(issue.team_id)
         return self.issues.solve(issue, note, active.id if active else None)
-
-    def _make_it_an_issue(self, actor: User, measurable, week_start: date) -> tuple[Issue, bool]:
-        if week_start.weekday() != 0 or week_start not in self.clock.last_n_weeks(13):
-            raise DomainValidationError("week_start must be a Monday within the 13-week scorecard window")
-        # TODO(rules): also require the cell to be off-track once the status rule module exists.
-        title = f"{measurable.name} — week of {week_start.isoformat()}"
-        return self.issues.get_or_create_from_source(measurable.team_id, actor.id, title, measurable.id, week_start)
