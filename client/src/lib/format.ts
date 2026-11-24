@@ -31,7 +31,7 @@ export const fmtNum = (value: string | number | null | undefined) => {
   return n === null ? '' : String(Math.round(n * 10000) / 10000)
 }
 
-export function goalText(m: Measurable): string {
+export function goalText(m: Pick<Measurable, 'goal_type' | 'goal_value' | 'goal_min' | 'goal_max'>): string {
   const v = fmtNum(m.goal_value)
   switch (m.goal_type) {
     case 'at_least': return `≥ ${v}`

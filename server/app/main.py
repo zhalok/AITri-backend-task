@@ -13,6 +13,8 @@ from app.modules.measurable.controller import admin_router as measurable_admin_r
 from app.modules.measurable.controller import router as measurable_router
 from app.modules.meeting.controller import admin_router as meeting_admin_router
 from app.modules.meeting.controller import router as meeting_router
+from app.modules.meeting_summary.controller import admin_router as meeting_summary_admin_router
+from app.modules.meeting_summary.controller import router as meeting_summary_router
 from app.modules.realtime.controller import router as realtime_router
 from app.modules.rock.controller import admin_router as rock_admin_router
 from app.modules.rock.controller import router as rock_router
@@ -55,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(issue_router, prefix="/api", dependencies=protected)
     app.include_router(todo_router, prefix="/api", dependencies=protected)
     app.include_router(meeting_router, prefix="/api", dependencies=protected)
+    app.include_router(meeting_summary_router, prefix="/api", dependencies=protected)
     # Authenticates itself (first frame), because browsers cannot set headers on a WebSocket.
     app.include_router(realtime_router, prefix="/api")
 
@@ -66,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(issue_admin_router, prefix="/api", dependencies=protected)
     app.include_router(todo_admin_router, prefix="/api", dependencies=protected)
     app.include_router(meeting_admin_router, prefix="/api", dependencies=protected)
+    app.include_router(meeting_summary_admin_router, prefix="/api", dependencies=protected)
     return app
 
 

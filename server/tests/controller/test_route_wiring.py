@@ -5,6 +5,7 @@ import pytest
 from app.core.errors import ConflictError
 from app.modules.issue.factory import get_issue_usecase
 from app.modules.measurable.factory import get_measurable_usecase
+from app.modules.meeting_summary.factory import get_meeting_summary_usecase
 from app.modules.meeting.factory import get_meeting_usecase
 from app.modules.rock.factory import get_rock_usecase
 from app.modules.score.factory import get_score_usecase
@@ -36,6 +37,7 @@ ROUTES = [
     (get_meeting_usecase, "POST", "/meetings/mt1/advance", None, "advance"),
     (get_meeting_usecase, "POST", "/meetings/mt1/end", None, "end"),
     (get_meeting_usecase, "PUT", "/meetings/mt1/rating", {"rating": 5}, "rate"),
+    (get_meeting_summary_usecase, "GET", "/meetings/mt1/summary", None, "get"),
 ]
 IDS = [f"{m} {p} -> {name}" for _, m, p, _, name in ROUTES]
 
