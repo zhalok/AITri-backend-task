@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI
 from app.core.auth import get_current_user
 from app.core.errors import register_error_handlers
 from app.core.realtime import forward_changes, new_redis
+from app.modules.audit.controller import router as audit_router
 from app.modules.auth.controller import router as auth_router
 from app.modules.issue.controller import admin_router as issue_admin_router
 from app.modules.issue.controller import router as issue_router
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(todo_router, prefix="/api", dependencies=protected)
     app.include_router(meeting_router, prefix="/api", dependencies=protected)
     app.include_router(meeting_summary_router, prefix="/api", dependencies=protected)
+    app.include_router(audit_router, prefix="/api", dependencies=protected)  # Admin-only by RBAC (any team)
     # Authenticates itself (first frame), because browsers cannot set headers on a WebSocket.
     app.include_router(realtime_router, prefix="/api")
 

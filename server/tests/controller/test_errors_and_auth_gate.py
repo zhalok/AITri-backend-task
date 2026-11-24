@@ -47,11 +47,18 @@ class FakeAuth:
         raise UnauthorizedError("Invalid or expired token")
 
 
+class FakeSession:
+    """The gate tags the request's transaction with the user; there is no database here, so that is a no-op."""
+
+    def execute(self, *_args, **_kwargs):
+        return None
+
+
 @pytest.fixture
 def anon():
     """A client with the real get_current_user: no override of the gate itself."""
     app = create_app()
-    app.dependency_overrides[get_session] = lambda: None
+    app.dependency_overrides[get_session] = lambda: FakeSession()
     app.dependency_overrides[get_auth_service] = lambda: FakeAuth()
     return app, TestClient(app)
 
