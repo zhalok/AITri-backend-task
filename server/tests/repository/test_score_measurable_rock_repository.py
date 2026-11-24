@@ -41,6 +41,35 @@ def test_upsert_accepts_zero_and_negative_values(scores):
     assert scores.upsert("m1", W2, Decimal("-3")).value == -3
 
 
+def test_set_if_seen_writes_when_the_cell_still_holds_what_was_seen(scores, world):
+    scores.upsert("m1", W1, Decimal("9"))
+    saved = scores.set_if_seen("m1", W1, Decimal("10"), Decimal("9"))
+    assert saved is not None and saved.value == Decimal("10")
+    assert scores.list_for(["m1"], [W1])[0].value == Decimal("10")
+
+
+def test_set_if_seen_refuses_and_changes_nothing_when_the_cell_moved_on(scores, world):
+    scores.upsert("m1", W1, Decimal("12"))
+    assert scores.set_if_seen("m1", W1, Decimal("10"), Decimal("9")) is None
+    assert scores.list_for(["m1"], [W1])[0].value == Decimal("12")
+
+
+def test_set_if_seen_matches_numerically_not_by_text(scores, world):
+    scores.upsert("m1", W1, Decimal("9.5000"))
+    assert scores.set_if_seen("m1", W1, Decimal("10"), Decimal("9.5")) is not None
+
+
+def test_set_if_seen_none_inserts_into_an_empty_cell_but_not_a_filled_one(scores, world):
+    assert scores.set_if_seen("m1", W1, Decimal("10"), None).value == Decimal("10")
+    assert scores.set_if_seen("m1", W1, Decimal("11"), None) is None  # someone filled it first
+    assert scores.list_for(["m1"], [W1])[0].value == Decimal("10")
+
+
+def test_set_if_seen_with_a_value_refuses_an_empty_cell(scores, world):
+    assert scores.set_if_seen("m1", W1, Decimal("10"), Decimal("9")) is None
+    assert scores.list_for(["m1"], [W1]) == []
+
+
 def test_list_for_filters_by_measurable_and_week(scores):
     for m, w, v in [("m1", W1, 1), ("m1", W2, 2), ("m1", W3, 3), ("m2", W1, 4)]:
         scores.upsert(m, w, Decimal(v))

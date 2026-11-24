@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI
 from app.core.auth import get_current_user
 from app.core.errors import register_error_handlers
 from app.core.realtime import forward_changes, new_redis
+from app.modules.audit.controller import router as audit_router
 from app.modules.auth.controller import router as auth_router
 from app.modules.issue.controller import admin_router as issue_admin_router
 from app.modules.issue.controller import router as issue_router
@@ -42,7 +43,11 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     """Application factory. Per-request wiring is done by each module's factory.py via Depends."""
-    app = FastAPI(title="Level 10 Meeting API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Level 10 Meeting API", version="0.1.0", lifespan=lifespan,
+        # Everything the API serves lives under /api, docs included (so one proxy rule covers it all).
+        docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json",
+    )
     register_error_handlers(app)
     # Public: sign-in only. Everything else is protected by default (fail closed):
     # the auth dependency is attached where routers are mounted, so a new route cannot forget it.
@@ -58,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(todo_router, prefix="/api", dependencies=protected)
     app.include_router(meeting_router, prefix="/api", dependencies=protected)
     app.include_router(meeting_summary_router, prefix="/api", dependencies=protected)
+    app.include_router(audit_router, prefix="/api", dependencies=protected)  # Admin-only by RBAC (any team)
     # Authenticates itself (first frame), because browsers cannot set headers on a WebSocket.
     app.include_router(realtime_router, prefix="/api")
 

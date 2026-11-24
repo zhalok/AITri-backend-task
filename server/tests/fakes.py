@@ -29,6 +29,9 @@ class FakeIssueRepo(FakeRepo):
     def list_solved(self, team_id):
         return [i for i in self.items if i.team_id == team_id and i.solved_at is not None]
 
+    def get_for_update(self, issue_id):
+        return next((i for i in self.items if i.id == issue_id), None)
+
     def find_unsolved_by_source(self, measurable_id, week_start: date):
         return next((i for i in self.items if i.source_measurable_id == measurable_id
                      and i.source_week_start == week_start and i.solved_at is None), None)
@@ -98,6 +101,14 @@ class FakeScoreRepo(FakeRepo):
         return [s for s in self.scores if s.measurable_id in measurable_ids and s.week_start in weeks]
 
     def upsert(self, measurable_id, week_start, value):
+        self.upserts.append((measurable_id, week_start, value))
+        return ("saved", measurable_id, week_start, value)
+
+    def set_if_seen(self, measurable_id, week_start, value, seen):
+        """Compare-and-set over the in-memory scores; the real one does it with a row lock."""
+        current = next((s for s in self.scores if s.measurable_id == measurable_id and s.week_start == week_start), None)
+        if (None if current is None else current.value) != seen:
+            return None
         self.upserts.append((measurable_id, week_start, value))
         return ("saved", measurable_id, week_start, value)
 

@@ -15,7 +15,7 @@ from collections import Counter
 
 from app.core.clock import Clock
 from app.core.config import get_settings
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, tag_actor
 from app.core.errors import AppError
 from app.modules.meeting.repository import MeetingRepository
 from app.modules.meeting.service import MeetingService
@@ -40,11 +40,12 @@ def closed(user: User, team_id: str) -> bool:
     return True
 
 
-def _with_active_meeting(team_id: str, action) -> None:
+def _with_active_meeting(team_id: str, user: User, action) -> None:
     """Run `action(service, meeting)` on the team's running meeting, if any. Never raises."""
     try:
         settings = get_settings()
         with SessionLocal() as session:
+            tag_actor(session, user.id)  # audit: this change is the user's connecting or disconnecting
             service = MeetingService(MeetingRepository(session), Clock(settings.app_now, settings.company_timezone))
             meeting = service.get_active_for_team(team_id)
             if meeting is not None:
@@ -57,8 +58,8 @@ def _with_active_meeting(team_id: str, action) -> None:
 
 
 def join_active_meeting(user: User, team_id: str) -> None:
-    _with_active_meeting(team_id, lambda service, meeting: service.join(meeting, user))
+    _with_active_meeting(team_id, user, lambda service, meeting: service.join(meeting, user))
 
 
 def leave_active_meeting(user: User, team_id: str) -> None:
-    _with_active_meeting(team_id, lambda service, meeting: service.leave(meeting, user))
+    _with_active_meeting(team_id, user, lambda service, meeting: service.leave(meeting, user))

@@ -70,6 +70,8 @@ class Action(StrEnum):
     ANY_TEAM_ADVANCE_MEETING = "any_team_advance_meeting"
     ANY_TEAM_END_MEETING = "any_team_end_meeting"
     ANY_TEAM_RATE_MEETING = "any_team_rate_meeting"
+    # Audit trail (Admin only, any team)
+    LIST_AUDIT_EVENTS = "list_audit_events"
     # Capability (not an endpoint)
     BE_ASSIGNED_WORK = "be_assigned_work"  # may own Issues, To-Dos, Measurables, Rocks
 
@@ -115,7 +117,7 @@ ANY_TEAM_OF: dict[Action, Action] = {
 
 ADMIN_ACTIONS = (
     TEAM_MEMBER_ACTIONS
-    | frozenset({Action.LIST_ALL_TEAMS, Action.LIST_ALL_USERS})
+    | frozenset({Action.LIST_ALL_TEAMS, Action.LIST_ALL_USERS, Action.LIST_AUDIT_EVENTS})
     | frozenset(ANY_TEAM_OF.values())
 )
 

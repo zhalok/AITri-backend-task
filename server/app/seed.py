@@ -19,7 +19,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401  (registers every table)
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, tag_actor
 from app.modules.issue.models import Issue
 from app.modules.measurable.models import Measurable
 from app.modules.meeting.models import Meeting, MeetingAttendee, MeetingRating, MeetingStatus, Section
@@ -121,6 +121,7 @@ def main(path: Path | None = None) -> None:
     path = path or (Path(sys.argv[1]) if len(sys.argv) > 1 else Path(os.environ.get("SEED_FILE", DEFAULT_SEED)))
     data = json.loads(path.read_text())
     with SessionLocal() as session:
+        tag_actor(session, "seed")  # the audit trail shows the seed as the author of what it loaded
         counts = load_seed(session, data)
         session.commit()
     print("Seeded:", ", ".join(f"{n} {k}" for k, n in counts.items()))

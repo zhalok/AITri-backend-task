@@ -145,3 +145,30 @@ def test_login_rejects_invalid_input(client, mock_usecase, body):
 def test_me_returns_the_authenticated_user(client, actor):
     r = client.get("/api/auth/me")
     assert r.status_code == 200 and r.json()["id"] == actor.id
+
+
+# ---- seen: only passed on when the client sent it ------------------------------------------------
+
+def test_a_save_without_seen_calls_the_use_case_without_it(client, mock_usecase, actor):
+    uc = mock_usecase(get_score_usecase)
+    uc.set_score.return_value = Score(measurable_id="m1", week_start=W1, value=Decimal(10))
+    client.put("/api/measurables/m1/scores/2026-11-02", json={"value": 10})
+    uc.set_score.assert_called_once_with(actor, "m1", W1, Decimal(10))
+
+
+@pytest.mark.parametrize("seen,expected", [(9, Decimal(9)), (None, None), (0, Decimal(0))])
+def test_a_save_with_seen_passes_it_on_even_when_it_is_null_or_zero(client, mock_usecase, actor, seen, expected):
+    uc = mock_usecase(get_score_usecase)
+    uc.set_score.return_value = Score(measurable_id="m1", week_start=W1, value=Decimal(10))
+    client.put("/api/measurables/m1/scores/2026-11-02", json={"value": 10, "seen": seen})
+    uc.set_score.assert_called_once_with(actor, "m1", W1, Decimal(10), seen=expected)
+
+
+def test_a_stale_save_is_a_409_that_carries_the_current_value(client, mock_usecase):
+    from app.core.errors import StaleDataError
+
+    uc = mock_usecase(get_score_usecase)
+    uc.set_score.side_effect = StaleDataError("changed", current="12")
+    r = client.put("/api/measurables/m1/scores/2026-11-02", json={"value": 10, "seen": 9})
+    assert r.status_code == 409
+    assert r.json() == {"error": "stale_data", "message": "changed", "current": "12"}

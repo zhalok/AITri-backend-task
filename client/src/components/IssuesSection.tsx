@@ -89,7 +89,8 @@ export default function IssuesSection({ teamId }: { teamId: string }) {
                       {canWrite ? (
                         <OptionSelect ariaLabel={`Priority: ${i.title}`} className="h-7 w-20" options={PRIORITIES}
                                       value={i.priority === null ? 'none' : String(i.priority)}
-                                      onChange={(v) => setPriority.mutate({ issueId: i.id, priority: toPriority(v) })} />
+                                      disabled={setPriority.isPending}
+                                      onChange={(v) => setPriority.mutate({ issueId: i.id, priority: toPriority(v), seen: i.priority })} />
                       ) : (
                         <Badge variant="secondary">{i.priority === null ? '–' : `P${i.priority}`}</Badge>
                       )}

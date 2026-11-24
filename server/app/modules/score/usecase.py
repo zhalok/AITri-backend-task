@@ -1,6 +1,7 @@
 from datetime import date
 
 from app.core.clock import Clock
+from app.core.concurrency import UNSET
 from app.modules.measurable.service import MeasurableService
 from app.modules.score.models import Score
 from app.modules.score.service import Scorecard, ScorecardLine, ScoreService
@@ -29,16 +30,16 @@ class ScoreUseCase:
         self.rbac.require(actor, Action.ANY_TEAM_VIEW_SCORECARD)
         return self._scorecard(team_id)
 
-    def set_score(self, actor: User, measurable_id: str, week_start: date, value) -> Score:
+    def set_score(self, actor: User, measurable_id: str, week_start: date, value, seen=UNSET) -> Score:
         self.rbac.require(actor, Action.EDIT_SCORE)
         measurable = self.measurables.get_or_raise(measurable_id)
         self.scope.require_member(actor, measurable.team_id)
-        return self.scores.set_score(measurable_id, week_start, value)
+        return self.scores.set_score(measurable_id, week_start, value, seen)
 
-    def admin_set_score(self, actor: User, measurable_id: str, week_start: date, value) -> Score:
+    def admin_set_score(self, actor: User, measurable_id: str, week_start: date, value, seen=UNSET) -> Score:
         self.rbac.require(actor, Action.ANY_TEAM_EDIT_SCORE)
         self.measurables.get_or_raise(measurable_id)
-        return self.scores.set_score(measurable_id, week_start, value)
+        return self.scores.set_score(measurable_id, week_start, value, seen)
 
     def _scorecard(self, team_id: str) -> Scorecard:
         weeks = self.clock.last_n_weeks(13)

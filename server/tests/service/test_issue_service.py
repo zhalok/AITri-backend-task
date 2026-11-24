@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from app.core.errors import ConflictError, DomainValidationError, NotFoundError
+from app.core.errors import ConflictError, DomainValidationError, NotFoundError, StaleDataError
 from app.modules.issue.service import IssueService
 from tests.fakes import FakeIssueRepo
 from tests.helpers import NOW, make_issue, make_measurable, utc
@@ -123,3 +123,29 @@ def test_make_it_an_issue_requires_an_off_track_cell(service, repo, status):
     with pytest.raises(DomainValidationError):
         service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2), status)
     assert repo.items == [] or len(repo.items) == 0
+
+
+# ---- priority: compare against what the editor saw ----------------------------------------------
+
+def test_priority_is_set_when_it_is_still_what_the_editor_saw(service, repo):
+    repo.items.append(make_issue("i1", priority=2))
+    assert service.set_priority(repo.items[0], 4, seen=2).priority == 4
+
+
+def test_priority_based_on_a_stale_view_is_refused_and_not_changed(service, repo):
+    repo.items.append(make_issue("i1", priority=5))  # a teammate already raised it from 2 to 5
+    with pytest.raises(StaleDataError) as e:
+        service.set_priority(repo.items[0], 4, seen=2)
+    assert e.value.extra == {"current": 5} and "P5" in e.value.message
+    assert repo.items[0].priority == 5
+
+
+def test_priority_without_a_seen_value_is_last_save_wins(service, repo):
+    repo.items.append(make_issue("i1", priority=5))
+    assert service.set_priority(repo.items[0], 1).priority == 1
+
+
+def test_seen_none_means_the_editor_saw_no_priority(service, repo):
+    repo.items.append(make_issue("i1", priority=3))
+    with pytest.raises(StaleDataError):
+        service.set_priority(repo.items[0], 4, seen=None)
