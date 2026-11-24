@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends
@@ -43,6 +43,10 @@ class Clock:
 
     def last_closed_week_start(self) -> date:
         return self.current_week_start() - timedelta(days=7)
+
+    def week_end(self, week_start: date) -> datetime:
+        """The first instant after the week: next Monday 00:00 in company time."""
+        return datetime.combine(week_start + timedelta(days=7), time.min, tzinfo=self.tz)
 
     def last_n_weeks(self, n: int = 13) -> list[date]:
         """Oldest first, ending with the current week."""

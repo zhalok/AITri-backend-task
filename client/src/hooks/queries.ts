@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/auth/AuthProvider'
 import { api } from '@/lib/api'
-import type { Issue, MeetingState, Rock, Scorecard, Team, Todo, User } from '@/lib/types'
+import type { CompletionRate, Issue, MeetingState, Rock, Scorecard, Team, Todo, User } from '@/lib/types'
 
 export const key = (teamId: string, part: string, ...rest: unknown[]) => ['team', teamId, part, ...rest]
 
@@ -33,6 +33,14 @@ export function useIssues(teamId: string, status: 'unsolved' | 'solved') {
 export function useTodos(teamId: string) {
   const { scope } = useAuth()
   return useQuery({ queryKey: key(teamId, 'todos'), queryFn: () => api.get<Todo[]>(`${scope}/teams/${teamId}/todos`) })
+}
+
+export function useCompletionRate(teamId: string) {
+  const { scope } = useAuth()
+  return useQuery({
+    queryKey: key(teamId, 'todos', 'completion-rate'),
+    queryFn: () => api.get<CompletionRate>(`${scope}/teams/${teamId}/todos/completion-rate`),
+  })
 }
 
 export function useRocks(teamId: string) {

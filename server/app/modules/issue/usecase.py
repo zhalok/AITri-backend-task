@@ -4,6 +4,7 @@ from app.modules.issue.models import Issue
 from app.modules.issue.service import IssueService
 from app.modules.measurable.service import MeasurableService
 from app.modules.meeting.service import MeetingService
+from app.modules.score.service import ScoreService
 from app.core.permissions import Action
 from app.core.rbac import Rbac
 from app.modules.team.scope import TeamScope
@@ -16,12 +17,14 @@ class IssueUseCase:
         issues: IssueService,
         measurables: MeasurableService,
         meetings: MeetingService,
+        scores: ScoreService,
         rbac: Rbac,
         scope: TeamScope,
     ):
         self.issues = issues
         self.measurables = measurables
         self.meetings = meetings
+        self.scores = scores
         self.rbac = rbac
         self.scope = scope
 
@@ -69,12 +72,16 @@ class IssueUseCase:
         self.rbac.require(actor, Action.MAKE_ISSUE_FROM_SCORE)
         measurable = self.measurables.get_or_raise(measurable_id)
         self.scope.require_member(actor, measurable.team_id)
-        return self.issues.make_it_an_issue(actor.id, measurable, week_start)
+        return self._make_it_an_issue(actor, measurable, week_start)
 
     def admin_make_it_an_issue(self, actor: User, measurable_id: str, week_start: date) -> tuple[Issue, bool]:
         self.rbac.require(actor, Action.ANY_TEAM_MAKE_ISSUE_FROM_SCORE)
         measurable = self.measurables.get_or_raise(measurable_id)
-        return self.issues.make_it_an_issue(actor.id, measurable, week_start)
+        return self._make_it_an_issue(actor, measurable, week_start)
+
+    def _make_it_an_issue(self, actor: User, measurable, week_start: date) -> tuple[Issue, bool]:
+        status = self.scores.status_for(measurable, week_start)
+        return self.issues.make_it_an_issue(actor.id, measurable, week_start, status)
 
     def _solve(self, issue: Issue, note: str) -> Issue:
         active = self.meetings.get_active_for_team(issue.team_id)

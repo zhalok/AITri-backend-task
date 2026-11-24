@@ -29,6 +29,15 @@ class TodoUseCase:
         self.rbac.require(actor, Action.ANY_TEAM_LIST_TODOS)
         return [self.todos.view(t) for t in self.todos.list_for_team(team_id)]
 
+    def completion_rate(self, actor: User, team_id: str):
+        self.rbac.require(actor, Action.LIST_TODOS)
+        self.scope.require_member(actor, team_id)
+        return self.todos.last_closed_week_rate(team_id)
+
+    def admin_completion_rate(self, actor: User, team_id: str):
+        self.rbac.require(actor, Action.ANY_TEAM_LIST_TODOS)
+        return self.todos.last_closed_week_rate(team_id)
+
     def create_for_issue(self, actor: User, issue_id: str, title: str, owner_id: str) -> TodoView:
         self.rbac.require(actor, Action.CREATE_TODO)
         issue = self.issues.get_or_raise(issue_id)

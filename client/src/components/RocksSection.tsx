@@ -26,8 +26,9 @@ export default function RocksSection({ teamId }: { teamId: string }) {
                   <div className="font-medium">{r.title}</div>
                   <div className="text-xs text-muted-foreground">{owner(r.owner_id)} · {r.quarter}</div>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {r.milestones.length ? `${done} of ${r.milestones.length} milestones` : 'No milestones'}
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="font-medium text-foreground">{r.progress}%</span>
+                  {' · '}{r.milestones.length ? `${done} of ${r.milestones.length} milestones` : 'No milestones'}
                 </span>
                 <Badge variant={r.status === 'complete' ? 'default' : r.status === 'off_track' ? 'destructive' : 'secondary'}
                        className="capitalize">{roleLabel(r.status)}</Badge>

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from app.core.auth import get_current_user
 from app.modules.todo.factory import get_todo_usecase
-from app.modules.todo.schemas import TodoCreate, TodoOut
+from app.modules.todo.schemas import CompletionRateOut, TodoCreate, TodoOut
 from app.modules.todo.usecase import TodoUseCase
 from app.modules.user.models import User
 
@@ -12,6 +12,12 @@ router = APIRouter(tags=["todos"])
 @router.get("/teams/{team_id}/todos", response_model=list[TodoOut])
 def list_todos(team_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
     return [TodoOut.from_view(v) for v in uc.list_todos(actor, team_id)]
+
+
+@router.get("/teams/{team_id}/todos/completion-rate", response_model=CompletionRateOut)
+def completion_rate(team_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
+    """Last closed week: To-Dos done by the end of it / due in it. None when nothing was due."""
+    return uc.completion_rate(actor, team_id)
 
 
 @router.post("/issues/{issue_id}/todos", response_model=TodoOut, status_code=201)
@@ -33,6 +39,11 @@ def undo_done(todo_id: str, actor: User = Depends(get_current_user), uc: TodoUse
 
 
 admin_router = APIRouter(prefix="/admin", tags=["admin: any team"])
+
+
+@admin_router.get("/teams/{team_id}/todos/completion-rate", response_model=CompletionRateOut)
+def admin_completion_rate(team_id: str, actor: User = Depends(get_current_user), uc: TodoUseCase = Depends(get_todo_usecase)):
+    return uc.admin_completion_rate(actor, team_id)
 
 
 @admin_router.get("/teams/{team_id}/todos", response_model=list[TodoOut])
