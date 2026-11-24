@@ -65,7 +65,7 @@ def meetings(mock_usecase):
 
 
 def state(**kw):
-    base = dict(id="mt1", team_id="t1", facilitator_id="u2", started_at=NOW, ended_at=None,
+    base = dict(id="mt1", team_id="t1", facilitator_id="u2", started_at=NOW, ended_at=None, status="active",
                 current_section="scorecard", section_started_at=NOW, section_duration_seconds=300,
                 section_elapsed_seconds=42, over_time=False, attendee_ids=["u2", "u3"], ratings={}, average_rating=None)
     return MeetingState(**{**base, **kw})
@@ -77,7 +77,7 @@ def test_start_returns_201_and_the_full_state(client, meetings, actor):
     assert r.status_code == 201
     assert r.json() == {
         "id": "mt1", "team_id": "t1", "facilitator_id": "u2", "started_at": "2026-11-11T15:00:00Z",
-        "ended_at": None, "current_section": "scorecard", "section_started_at": "2026-11-11T15:00:00Z",
+        "ended_at": None, "status": "active", "current_section": "scorecard", "section_started_at": "2026-11-11T15:00:00Z",
         "section_duration_seconds": 300, "section_elapsed_seconds": 42, "over_time": False,
         "attendee_ids": ["u2", "u3"], "ratings": {}, "average_rating": None,
         "sections": [],

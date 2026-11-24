@@ -40,7 +40,7 @@ def test_different_teams_can_each_have_an_active_meeting(repo):
 
 def test_an_ended_meeting_frees_the_team_for_a_new_one(repo, world):
     old = repo.add_meeting(make_meeting("old", team_id="t1"))
-    old.ended_at = NOW + timedelta(hours=1)
+    old.ended_at, old.status = NOW + timedelta(hours=1), "ended"
     world.flush()
     assert repo.get_active_for_team("t1") is None
     repo.add_meeting(make_meeting("new", team_id="t1"))
@@ -111,3 +111,15 @@ def test_rating_boundaries_are_stored(repo, rating):
 def test_ratings_of_a_meeting_with_none_is_empty(repo):
     repo.add_meeting(make_meeting("mt1"))
     assert repo.ratings("mt1") == {}
+
+
+def test_the_database_refuses_a_status_that_disagrees_with_ended_at(world):
+    ended = make_meeting("a", ended_at=NOW + timedelta(hours=1))
+    ended.status = "active"  # ended, but still "active"
+    violates(world, ended)
+    running = make_meeting("b")
+    running.status = "ended"  # running, but "ended"
+    violates(world, running)
+    odd = make_meeting("c")
+    odd.status = "paused"  # not a status at all
+    violates(world, odd)

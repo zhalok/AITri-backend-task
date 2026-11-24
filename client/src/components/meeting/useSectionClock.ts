@@ -8,7 +8,7 @@ import type { MeetingState } from '@/lib/types'
  */
 export function useSectionClock(meeting: MeetingState | undefined, receivedAt: number) {
   const [now, setNow] = useState(() => Date.now())
-  const running = !!meeting && !meeting.ended_at
+  const running = !!meeting && meeting.status === 'active'
 
   useEffect(() => {
     if (!running) return

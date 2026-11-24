@@ -13,6 +13,11 @@ class Section(StrEnum):
     CONCLUDE = "conclude"
 
 
+class MeetingStatus(StrEnum):
+    ACTIVE = "active"
+    ENDED = "ended"
+
+
 SECTION_ORDER = [Section.SCORECARD, Section.IDS, Section.CONCLUDE]
 SECTION_MINUTES = {Section.SCORECARD: 5, Section.IDS: 60, Section.CONCLUDE: 10}
 
@@ -22,8 +27,11 @@ class Meeting(Base):
     __table_args__ = (
         CheckConstraint("current_section in ('scorecard','ids','conclude')", name="ck_meeting_section"),
         CheckConstraint("ended_at is null or ended_at >= started_at", name="ck_meeting_end_after_start"),
+        CheckConstraint("status in ('active','ended')", name="ck_meeting_status"),
+        # `status` and `ended_at` say the same thing; the database refuses a row where they disagree.
+        CheckConstraint("(status = 'active') = (ended_at is null)", name="ck_meeting_status_matches_ended_at"),
         # One active meeting per team, enforced by the database.
-        Index("uq_one_active_meeting_per_team", "team_id", unique=True, postgresql_where=text("ended_at is null")),
+        Index("uq_one_active_meeting_per_team", "team_id", unique=True, postgresql_where=text("status = 'active'")),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -33,10 +41,11 @@ class Meeting(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     current_section: Mapped[str] = mapped_column(String(16), default=Section.SCORECARD)
     section_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(16), default=MeetingStatus.ACTIVE, server_default=MeetingStatus.ACTIVE)
 
     @property
     def is_active(self) -> bool:
-        return self.ended_at is None
+        return self.status == MeetingStatus.ACTIVE
 
 
 class MeetingAttendee(Base):

@@ -22,7 +22,7 @@ import app.models  # noqa: F401  (registers every table)
 from app.core.database import SessionLocal
 from app.modules.issue.models import Issue
 from app.modules.measurable.models import Measurable
-from app.modules.meeting.models import Meeting, MeetingAttendee, MeetingRating, Section
+from app.modules.meeting.models import Meeting, MeetingAttendee, MeetingRating, MeetingStatus, Section
 from app.modules.milestone.models import Milestone
 from app.modules.rock.models import Rock
 from app.modules.score.models import Score
@@ -87,6 +87,7 @@ def load_seed(session: Session, data: dict) -> dict[str, int]:
         put(Meeting(
             id=m["id"], team_id=m["team_id"], facilitator_id=m["facilitator_id"], started_at=_dt(m["started_at"]),
             ended_at=_dt(m["ended_at"]), current_section=Section.CONCLUDE, section_started_at=_dt(m["ended_at"]),
+            status=MeetingStatus.ENDED,
         ))
         for user_id in m["attendee_ids"]:
             put(MeetingAttendee(meeting_id=m["id"], user_id=user_id))

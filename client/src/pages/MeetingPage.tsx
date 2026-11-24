@@ -62,7 +62,7 @@ function MeetingRoom({ teamId, meetingId }: { teamId: string; meetingId: string 
   }
   if (!meeting) return <LoadingRows />
 
-  const ended = !!meeting.ended_at
+  const ended = meeting.status === 'ended'
   const isFacilitator = user?.id === meeting.facilitator_id
   const facilitator = members.data?.find((u) => u.id === meeting.facilitator_id)?.name ?? meeting.facilitator_id
   const section = meeting.current_section

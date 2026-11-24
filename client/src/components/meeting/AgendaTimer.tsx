@@ -9,7 +9,7 @@ import { useSectionClock } from './useSectionClock'
 export function AgendaTimer({ meeting, receivedAt }: { meeting: MeetingState; receivedAt: number }) {
   const clock = useSectionClock(meeting, receivedAt)
   const currentIdx = SECTION_ORDER.indexOf(meeting.current_section)
-  const ended = !!meeting.ended_at
+  const ended = meeting.status === 'ended'
 
   return (
     <SectionCard title="Agenda">

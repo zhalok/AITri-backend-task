@@ -59,4 +59,5 @@ def make_milestone(id="ms1", rock_id="r1", title="Milestone", due_date=date(2026
 def make_meeting(id="mt1", team_id="t1", facilitator_id="u2", started_at=NOW, ended_at=None,
                  current_section="scorecard", section_started_at=NOW) -> Meeting:
     return Meeting(id=id, team_id=team_id, facilitator_id=facilitator_id, started_at=started_at, ended_at=ended_at,
+                   status="ended" if ended_at else "active",
                    current_section=current_section, section_started_at=section_started_at)

@@ -15,7 +15,7 @@ export function ConcludeView({ teamId, meeting }: { teamId: string; meeting: Mee
   const name = (id: string) => members.data?.find((u) => u.id === id)?.name ?? id
   const created = (todos.data ?? []).filter((t) => t.created_in_meeting_id === meeting.id)
   const mine = user ? meeting.ratings[user.id] : undefined
-  const canRate = canWrite && !meeting.ended_at && !!user && meeting.attendee_ids.includes(user.id)
+  const canRate = canWrite && meeting.status === 'active' && !!user && meeting.attendee_ids.includes(user.id)
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">

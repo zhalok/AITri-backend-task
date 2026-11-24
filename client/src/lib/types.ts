@@ -34,7 +34,7 @@ export interface Rock {
 export type SectionName = 'scorecard' | 'ids' | 'conclude'
 export interface MeetingSection { section: SectionName; started_at: string; ended_at: string | null }
 export interface MeetingState {
-  id: string; team_id: string; facilitator_id: string; started_at: string; ended_at: string | null
+  id: string; team_id: string; facilitator_id: string; started_at: string; ended_at: string | null; status: 'active' | 'ended'
   current_section: SectionName; section_started_at: string
   section_duration_seconds: number; section_elapsed_seconds: number; over_time: boolean
   attendee_ids: string[]; ratings: Record<string, number>; average_rating: number | null

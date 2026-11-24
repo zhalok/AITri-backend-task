@@ -255,3 +255,12 @@ def test_nobody_can_leave_an_ended_meeting(service, meeting):
     service.end(meeting)
     with pytest.raises(DomainValidationError):
         service.leave(meeting, make_user("u3"))
+
+
+# ---- status -------------------------------------------------------------------------------------
+
+def test_a_new_meeting_is_active_and_ending_it_marks_it_ended(service, meeting):
+    assert (meeting.status, meeting.is_active) == ("active", True)
+    service.end(meeting)
+    assert (meeting.status, meeting.is_active) == ("ended", False)
+    assert service.state(meeting).status == "ended"

@@ -4,7 +4,7 @@ from datetime import datetime
 from app.core.base import BaseService, new_id
 from app.core.clock import Clock
 from app.core.errors import ConflictError, DomainValidationError, ForbiddenError
-from app.modules.meeting.models import SECTION_MINUTES, SECTION_ORDER, Meeting, MeetingSection, Section
+from app.modules.meeting.models import SECTION_MINUTES, SECTION_ORDER, Meeting, MeetingSection, MeetingStatus, Section
 from app.modules.meeting.repository import MeetingRepository
 from app.modules.user.models import User
 
@@ -18,6 +18,7 @@ class MeetingState:
     facilitator_id: str
     started_at: datetime
     ended_at: datetime | None
+    status: str
     current_section: str
     section_started_at: datetime
     section_duration_seconds: int
@@ -44,7 +45,7 @@ class MeetingService(BaseService[Meeting]):
         now = self.clock.live_now()
         meeting = Meeting(
             id=new_id(), team_id=team_id, facilitator_id=facilitator.id,
-            started_at=now, current_section=Section.SCORECARD, section_started_at=now,
+            started_at=now, current_section=Section.SCORECARD, section_started_at=now, status=MeetingStatus.ACTIVE,
         )
         self.repository.add_meeting(meeting)
         self.repository.open_section(meeting.id, Section.SCORECARD, now)
@@ -85,6 +86,7 @@ class MeetingService(BaseService[Meeting]):
         now = self.clock.live_now()
         self.repository.close_open_section(meeting.id, now)
         meeting.ended_at = now
+        meeting.status = MeetingStatus.ENDED
         self.repository.save()
         return meeting
 
@@ -108,7 +110,7 @@ class MeetingService(BaseService[Meeting]):
             avg = ((20 * sum(ratings.values()) + n) // (2 * n)) / 10
         return MeetingState(
             id=meeting.id, team_id=meeting.team_id, facilitator_id=meeting.facilitator_id,
-            started_at=meeting.started_at, ended_at=meeting.ended_at,
+            started_at=meeting.started_at, ended_at=meeting.ended_at, status=meeting.status,
             current_section=meeting.current_section, section_started_at=meeting.section_started_at,
             section_duration_seconds=duration, section_elapsed_seconds=elapsed, over_time=elapsed > duration,
             attendee_ids=self.repository.attendee_ids(meeting.id), ratings=ratings, average_rating=avg,

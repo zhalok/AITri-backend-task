@@ -21,6 +21,7 @@ class MeetingStateOut(BaseModel):
     facilitator_id: str
     started_at: datetime
     ended_at: datetime | None
+    status: str
     current_section: str
     section_started_at: datetime
     section_duration_seconds: int

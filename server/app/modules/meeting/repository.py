@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.base import BaseRepository
 from app.core.errors import ConflictError
-from app.modules.meeting.models import Meeting, MeetingAttendee, MeetingRating, MeetingSection
+from app.modules.meeting.models import Meeting, MeetingAttendee, MeetingRating, MeetingSection, MeetingStatus
 
 
 class MeetingRepository(BaseRepository[Meeting]):
@@ -20,7 +20,7 @@ class MeetingRepository(BaseRepository[Meeting]):
             raise ConflictError("This team already has an active meeting") from exc
 
     def get_active_for_team(self, team_id: str) -> Meeting | None:
-        stmt = select(Meeting).where(Meeting.team_id == team_id, Meeting.ended_at.is_(None))
+        stmt = select(Meeting).where(Meeting.team_id == team_id, Meeting.status == MeetingStatus.ACTIVE)
         return self.session.scalars(stmt).first()
 
     def save(self) -> None:
