@@ -1,0 +1,302 @@
+{
+  "now": "2026-11-11T15:00:00Z",
+  "teams": {
+    "team_lead": {
+      "measurable_status": {
+        "m1": {
+          "2026-08-17": "on_track",
+          "2026-08-24": "on_track",
+          "2026-08-31": "off_track",
+          "2026-09-07": "on_track",
+          "2026-09-14": "on_track",
+          "2026-09-21": "on_track",
+          "2026-09-28": "on_track",
+          "2026-10-05": "off_track",
+          "2026-10-12": "on_track",
+          "2026-10-19": "on_track",
+          "2026-10-26": "off_track",
+          "2026-11-02": "off_track",
+          "2026-11-09": "pending"
+        },
+        "m2": {
+          "2026-08-17": "on_track",
+          "2026-08-24": "on_track",
+          "2026-08-31": "off_track",
+          "2026-09-07": "on_track",
+          "2026-09-14": "on_track",
+          "2026-09-21": "on_track",
+          "2026-09-28": "on_track",
+          "2026-10-05": "off_track",
+          "2026-10-12": "on_track",
+          "2026-10-19": "on_track",
+          "2026-10-26": "on_track",
+          "2026-11-02": "on_track",
+          "2026-11-09": "pending"
+        },
+        "m3": {
+          "2026-08-17": "on_track",
+          "2026-08-24": "on_track",
+          "2026-08-31": "on_track",
+          "2026-09-07": "off_track",
+          "2026-09-14": "off_track",
+          "2026-09-21": "on_track",
+          "2026-09-28": "on_track",
+          "2026-10-05": "on_track",
+          "2026-10-12": "off_track",
+          "2026-10-19": "on_track",
+          "2026-10-26": "on_track",
+          "2026-11-02": "off_track",
+          "2026-11-09": "pending"
+        },
+        "m4": {
+          "2026-08-17": "on_track",
+          "2026-08-24": "on_track",
+          "2026-08-31": "off_track",
+          "2026-09-07": "on_track",
+          "2026-09-14": "on_track",
+          "2026-09-21": "off_track",
+          "2026-09-28": "on_track",
+          "2026-10-05": "on_track",
+          "2026-10-12": "on_track",
+          "2026-10-19": "on_track",
+          "2026-10-26": "off_track",
+          "2026-11-02": "on_track",
+          "2026-11-09": "pending"
+        },
+        "m5": {
+          "2026-08-17": "on_track",
+          "2026-08-24": "off_track",
+          "2026-08-31": "on_track",
+          "2026-09-07": "on_track",
+          "2026-09-14": "on_track",
+          "2026-09-21": "on_track",
+          "2026-09-28": "off_track",
+          "2026-10-05": "on_track",
+          "2026-10-12": "on_track",
+          "2026-10-19": "off_track",
+          "2026-10-26": "on_track",
+          "2026-11-02": "off_track",
+          "2026-11-09": "on_track"
+        }
+      },
+      "todo_completion": {
+        "2026-08-17": null,
+        "2026-08-24": null,
+        "2026-08-31": null,
+        "2026-09-07": null,
+        "2026-09-14": {
+          "due": 2,
+          "done": 2,
+          "rate_percent": 100,
+          "meets_target": true
+        },
+        "2026-09-21": null,
+        "2026-09-28": null,
+        "2026-10-05": null,
+        "2026-10-12": null,
+        "2026-10-19": null,
+        "2026-10-26": {
+          "due": 3,
+          "done": 2,
+          "rate_percent": 67,
+          "meets_target": false
+        },
+        "2026-11-02": {
+          "due": 10,
+          "done": 9,
+          "rate_percent": 90,
+          "meets_target": true
+        },
+        "2026-11-09": {
+          "due": 3,
+          "done": 0,
+          "rate_percent": 0,
+          "meets_target": false
+        }
+      },
+      "overdue_todos": [
+        "t12",
+        "t31"
+      ],
+      "rocks": {
+        "r1": {
+          "status": "on_track",
+          "progress_percent": 33
+        },
+        "r2": {
+          "status": "off_track",
+          "progress_percent": 13
+        },
+        "r3": {
+          "status": "complete",
+          "progress_percent": 100
+        },
+        "r4": {
+          "status": "off_track",
+          "progress_percent": 0
+        },
+        "r5": {
+          "status": "on_track",
+          "progress_percent": 0
+        }
+      },
+      "issue_order": [
+        "i2",
+        "i1",
+        "i5",
+        "i3",
+        "i4"
+      ],
+      "meetings": {
+        "mt1": {
+          "scorecard_week": "2026-10-19",
+          "measurable_status": {
+            "m1": "on_track",
+            "m2": "on_track",
+            "m3": "on_track",
+            "m4": "on_track",
+            "m5": "off_track"
+          },
+          "issues_solved": [
+            "i7"
+          ],
+          "todos_created": [
+            "t20"
+          ],
+          "attendee_ids": [
+            "u1",
+            "u2",
+            "u3",
+            "u4",
+            "u5"
+          ],
+          "rating": 8.0
+        },
+        "mt2": {
+          "scorecard_week": "2026-10-26",
+          "measurable_status": {
+            "m1": "off_track",
+            "m2": "on_track",
+            "m3": "on_track",
+            "m4": "off_track",
+            "m5": "on_track"
+          },
+          "issues_solved": [
+            "i6"
+          ],
+          "todos_created": [
+            "t30"
+          ],
+          "attendee_ids": [
+            "u1",
+            "u2",
+            "u3",
+            "u4",
+            "u5"
+          ],
+          "rating": 8.3
+        }
+      }
+    },
+    "team_ops": {
+      "measurable_status": {
+        "m7": {
+          "2026-08-17": "on_track",
+          "2026-08-24": "off_track",
+          "2026-08-31": "on_track",
+          "2026-09-07": "on_track",
+          "2026-09-14": "on_track",
+          "2026-09-21": "off_track",
+          "2026-09-28": "on_track",
+          "2026-10-05": "on_track",
+          "2026-10-12": "off_track",
+          "2026-10-19": "on_track",
+          "2026-10-26": "on_track",
+          "2026-11-02": "on_track",
+          "2026-11-09": "pending"
+        }
+      },
+      "todo_completion": {
+        "2026-08-17": null,
+        "2026-08-24": null,
+        "2026-08-31": null,
+        "2026-09-07": null,
+        "2026-09-14": null,
+        "2026-09-21": null,
+        "2026-09-28": null,
+        "2026-10-05": null,
+        "2026-10-12": null,
+        "2026-10-19": null,
+        "2026-10-26": null,
+        "2026-11-02": {
+          "due": 1,
+          "done": 1,
+          "rate_percent": 100,
+          "meets_target": true
+        },
+        "2026-11-09": null
+      },
+      "overdue_todos": [],
+      "rocks": {
+        "r7": {
+          "status": "on_track",
+          "progress_percent": 0
+        }
+      },
+      "issue_order": [
+        "i9"
+      ],
+      "meetings": {}
+    },
+    "team_sales": {
+      "measurable_status": {
+        "m6": {
+          "2026-08-17": "on_track",
+          "2026-08-24": "off_track",
+          "2026-08-31": "on_track",
+          "2026-09-07": "on_track",
+          "2026-09-14": "on_track",
+          "2026-09-21": "off_track",
+          "2026-09-28": "on_track",
+          "2026-10-05": "on_track",
+          "2026-10-12": "off_track",
+          "2026-10-19": "on_track",
+          "2026-10-26": "on_track",
+          "2026-11-02": "off_track",
+          "2026-11-09": "pending"
+        }
+      },
+      "todo_completion": {
+        "2026-08-17": null,
+        "2026-08-24": null,
+        "2026-08-31": null,
+        "2026-09-07": null,
+        "2026-09-14": null,
+        "2026-09-21": null,
+        "2026-09-28": null,
+        "2026-10-05": null,
+        "2026-10-12": null,
+        "2026-10-19": null,
+        "2026-10-26": null,
+        "2026-11-02": null,
+        "2026-11-09": {
+          "due": 1,
+          "done": 0,
+          "rate_percent": 0,
+          "meets_target": false
+        }
+      },
+      "overdue_todos": [],
+      "rocks": {
+        "r6": {
+          "status": "on_track",
+          "progress_percent": 0
+        }
+      },
+      "issue_order": [
+        "i8"
+      ],
+      "meetings": {}
+    }
+  }
+}

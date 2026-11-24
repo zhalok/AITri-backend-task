@@ -38,6 +38,9 @@ class MeetingService(BaseService[Meeting]):
         super().__init__(repository)
         self.clock = clock
 
+    def list_ended_for_team(self, team_id: str) -> list[Meeting]:
+        return self.repository.list_ended_for_team(team_id)
+
     def get_active_for_team(self, team_id: str) -> Meeting | None:
         return self.repository.get_active_for_team(team_id)
 

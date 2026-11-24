@@ -19,6 +19,10 @@ class MeetingRepository(BaseRepository[Meeting]):
         except IntegrityError as exc:  # uq_one_active_meeting_per_team
             raise ConflictError("This team already has an active meeting") from exc
 
+    def list_ended_for_team(self, team_id: str) -> list[Meeting]:
+        stmt = select(Meeting).where(Meeting.team_id == team_id, Meeting.status == MeetingStatus.ENDED)
+        return list(self.session.scalars(stmt.order_by(Meeting.id)))
+
     def get_active_for_team(self, team_id: str) -> Meeting | None:
         stmt = select(Meeting).where(Meeting.team_id == team_id, Meeting.status == MeetingStatus.ACTIVE)
         return self.session.scalars(stmt).first()

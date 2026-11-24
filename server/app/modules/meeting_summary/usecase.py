@@ -37,13 +37,15 @@ class MeetingSummaryUseCase:
         self.rbac.require(actor, Action.VIEW_MEETING)
         meeting = self.meetings.get_or_raise(meeting_id)
         self.scope.require_member(actor, meeting.team_id)
-        return self._summary(meeting)
+        return self.build_summary(meeting)
 
     def admin_get(self, actor: User, meeting_id: str) -> MeetingSummaryOut:
         self.rbac.require(actor, Action.ANY_TEAM_VIEW_MEETING)
-        return self._summary(self.meetings.get_or_raise(meeting_id))
+        return self.build_summary(self.meetings.get_or_raise(meeting_id))
 
-    def _summary(self, meeting) -> MeetingSummaryOut:
+    def build_summary(self, meeting) -> MeetingSummaryOut:
+        """The summary of an ended meeting. No access checks: the callers have already made them (or, for the
+        rules report, there is no user)."""
         if meeting.is_active:
             raise ConflictError("The summary is available once the meeting has ended")
         state = self.meetings.state(meeting)
