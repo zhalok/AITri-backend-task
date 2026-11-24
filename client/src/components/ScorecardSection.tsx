@@ -1,5 +1,5 @@
 import { TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/auth/AuthProvider'
 import { Empty, ErrorNote, LoadingRows, SectionCard } from '@/components/SectionCard'
@@ -9,18 +9,49 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useMakeItAnIssue, useMembers, useScorecard, useSetScore } from '@/hooks/queries'
 import { fmtNum, goalText, num, weekLabel } from '@/lib/format'
 
+/** How long after the last change a score is saved by itself. Stepping with the arrows, or a pause in typing. */
+const AUTOSAVE_MS = 400
+
 function ScoreCell({
   value, editable, saving, onSave, onMakeIssue, label,
 }: {
   value: string | null; editable: boolean; saving: boolean
   onSave: (n: number) => void; onMakeIssue: () => void; label: string
 }) {
-  const [draft, setDraft] = useState(fmtNum(value)) // resets when the cell is re-keyed after a save
+  const [draft, setDraft] = useState(fmtNum(value))
+  const focused = useRef(false)
+  const cancelled = useRef(false) // Escape: the blur that follows must not save
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  function commit() {
-    const n = draft.trim() === '' ? null : Number(draft)
-    if (n === null || !Number.isFinite(n)) return setDraft(fmtNum(value)) // can't clear a score; revert
+  // Follow the stored value (a teammate's edit, or our own save coming back), but never while this cell is
+  // being edited: that would overwrite what the user is typing.
+  useEffect(() => {
+    if (!focused.current) setDraft(fmtNum(value))
+  }, [value])
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  /** Saves a valid number that differs from what is stored. False when the text is empty or not a number. */
+  function save(text: string): boolean {
+    const n = text.trim() === '' ? null : Number(text)
+    if (n === null || !Number.isFinite(n)) return false
     if (n !== num(value)) onSave(n)
+    return true
+  }
+
+  function change(text: string) {
+    setDraft(text)
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => save(text), AUTOSAVE_MS) // an empty or half-typed box just waits
+  }
+
+  function blur() {
+    focused.current = false
+    clearTimeout(timer.current)
+    if (cancelled.current) {
+      cancelled.current = false
+      return setDraft(fmtNum(value))
+    }
+    if (!save(draft)) setDraft(fmtNum(value)) // can't clear a score; revert
   }
 
   if (!editable) return <span className="block px-2 text-right tabular-nums">{fmtNum(value) || '–'}</span>
@@ -31,15 +62,17 @@ function ScoreCell({
               onClick={onMakeIssue}>
         <TriangleAlert />
       </Button>
+      {/* Not disabled while saving: a disabled input drops focus, which would break stepping with the arrows. */}
       <Input
         type="number" step="any" inputMode="decimal" aria-label={`Score: ${label}`} value={draft}
-        placeholder="–" disabled={saving}
-        className="h-7 w-20 px-2 text-right tabular-nums"
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
+        placeholder="–" aria-busy={saving}
+        className={`h-7 w-20 px-2 text-right tabular-nums ${saving ? 'opacity-60' : ''}`}
+        onFocus={() => { focused.current = true }}
+        onChange={(e) => change(e.target.value)}
+        onBlur={blur}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur()
-          if (e.key === 'Escape') { setDraft(fmtNum(value)); e.currentTarget.blur() }
+          if (e.key === 'Escape') { cancelled.current = true; e.currentTarget.blur() }
         }}
       />
     </div>
@@ -100,7 +133,6 @@ export default function ScorecardSection({ teamId }: { teamId: string }) {
                   {weeks.map((w) => (
                     <TableCell key={w} className="text-right">
                       <ScoreCell
-                        key={`${w}:${scores[w] ?? ''}`}
                         value={scores[w] ?? null}
                         editable={canWrite}
                         saving={setScore.isPending && setScore.variables?.measurableId === m.id && setScore.variables.week === w}

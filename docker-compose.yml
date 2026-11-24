@@ -16,6 +16,16 @@ services:
       timeout: 3s
       retries: 20
 
+  # Fan-out for live updates: DB change events are published here, one channel per team.
+  redis:
+    image: redis:7-alpine
+    container_name: l10-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   # The API. Not published to the host: only nginx (below) can reach it.
   api:
     build:
@@ -25,8 +35,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/l10
+      REDIS_URL: redis://redis:6379/0
       APP_NOW: "2026-11-11T15:00:00Z"
       COMPANY_TIMEZONE: America/Chicago
       JWT_SECRET: change-me-in-production-this-is-only-a-dev-default

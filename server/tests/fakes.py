@@ -3,6 +3,7 @@ from datetime import date
 
 from app.core.errors import ConflictError
 from app.modules.issue.models import Issue
+from app.modules.meeting.models import MeetingSection
 
 
 class FakeRepo:
@@ -49,6 +50,18 @@ class FakeMeetingRepo(FakeRepo):
         super().__init__()
         self.attendees: dict[str, set[str]] = {}
         self.rating_rows: dict[str, dict[str, int]] = {}
+        self.section_rows: dict[str, list] = {}
+
+    def open_section(self, meeting_id, section, at):
+        self.section_rows.setdefault(meeting_id, []).append(MeetingSection(meeting_id=meeting_id, section=section, started_at=at))
+
+    def close_open_section(self, meeting_id, at):
+        for row in self.section_rows.get(meeting_id, []):
+            if row.ended_at is None:
+                row.ended_at = at
+
+    def sections(self, meeting_id):
+        return list(self.section_rows.get(meeting_id, []))
 
     def add_meeting(self, meeting):
         if any(m.team_id == meeting.team_id and m.ended_at is None for m in self.items):
@@ -60,6 +73,10 @@ class FakeMeetingRepo(FakeRepo):
 
     def add_attendee(self, meeting_id, user_id):
         self.attendees.setdefault(meeting_id, set()).add(user_id)
+
+    def remove_attendee(self, meeting_id, user_id):
+        self.attendees.get(meeting_id, set()).discard(user_id)
+        self.rating_rows.get(meeting_id, {}).pop(user_id, None)
 
     def attendee_ids(self, meeting_id):
         return sorted(self.attendees.get(meeting_id, set()))
