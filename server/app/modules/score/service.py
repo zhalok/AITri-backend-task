@@ -5,6 +5,7 @@ from decimal import Decimal
 from app.core.clock import Clock
 from app.core.errors import DomainValidationError
 from app.modules.measurable.models import Measurable
+from app.modules.measurable.rules import measurable_status
 from app.modules.score.models import Score
 from app.modules.score.repository import ScoreRepository
 
@@ -13,6 +14,7 @@ from app.modules.score.repository import ScoreRepository
 class ScorecardLine:
     measurable: Measurable
     scores: dict[date, Decimal | None]
+    statuses: dict[date, str]
 
 
 @dataclass
@@ -32,6 +34,15 @@ class ScoreService:
             for s in self.repository.list_for(measurable_ids, weeks):
                 out[s.measurable_id][s.week_start] = s.value
         return out
+
+    def status_for(self, measurable: Measurable, week_start: date) -> str:
+        found = self.repository.list_for([measurable.id], [week_start])
+        value = found[0].value if found else None
+        return measurable_status(measurable, value, week_start, self.clock.current_week_start())
+
+    def statuses(self, measurable: Measurable, scores: dict[date, Decimal | None]) -> dict[date, str]:
+        current = self.clock.current_week_start()
+        return {w: measurable_status(measurable, v, w, current) for w, v in scores.items()}
 
     def set_score(self, measurable_id: str, week_start: date, value: Decimal) -> Score:
         if week_start.weekday() != 0:

@@ -10,6 +10,8 @@ from app.modules.measurable.factory import get_measurable_service
 from app.modules.measurable.service import MeasurableService
 from app.modules.meeting.factory import get_meeting_service
 from app.modules.meeting.service import MeetingService
+from app.modules.score.factory import get_score_service
+from app.modules.score.service import ScoreService
 from app.modules.team.factory import get_team_scope
 from app.core.rbac import Rbac, get_rbac
 from app.modules.team.scope import TeamScope
@@ -27,7 +29,8 @@ def get_issue_usecase(
     issues: IssueService = Depends(get_issue_service),
     measurables: MeasurableService = Depends(get_measurable_service),
     meetings: MeetingService = Depends(get_meeting_service),
+    scores: ScoreService = Depends(get_score_service),
     rbac: Rbac = Depends(get_rbac), scope: TeamScope = Depends(get_team_scope),
 
 ) -> IssueUseCase:
-    return IssueUseCase(issues, measurables, meetings, rbac, scope)
+    return IssueUseCase(issues, measurables, meetings, scores, rbac, scope)

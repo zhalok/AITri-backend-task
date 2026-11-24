@@ -44,5 +44,8 @@ class ScoreUseCase:
         weeks = self.clock.last_n_weeks(13)
         measurables = self.measurables.list_for_team(team_id)
         by_m = self.scores.scores_by_measurable([m.id for m in measurables], weeks)
-        lines = [ScorecardLine(measurable=m, scores={w: by_m[m.id].get(w) for w in weeks}) for m in measurables]
+        lines = []
+        for m in measurables:
+            scores = {w: by_m[m.id].get(w) for w in weeks}
+            lines.append(ScorecardLine(measurable=m, scores=scores, statuses=self.scores.statuses(m, scores)))
         return Scorecard(weeks=weeks, lines=lines)

@@ -41,6 +41,9 @@ export function goalText(m: Measurable): string {
   }
 }
 
+export const STATUS_LABEL = { on_track: 'On track', off_track: 'Off track', pending: 'Pending' } as const
+export const STATUS_DOT = { on_track: 'bg-emerald-500', off_track: 'bg-red-500', pending: 'bg-amber-400' } as const
+
 export const roleLabel = (role: string) => role.replace('_', ' ')
 
 /** 75 -> "1:15". Whole seconds, minutes unpadded, as on a stopwatch. */

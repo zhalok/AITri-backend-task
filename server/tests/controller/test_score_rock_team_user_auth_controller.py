@@ -24,7 +24,7 @@ def test_scorecard_shape_maps_weeks_to_scores_with_nulls_for_missing(client, moc
     uc = mock_usecase(get_score_usecase)
     uc.get_scorecard.return_value = Scorecard(
         weeks=[W1, W2],
-        lines=[ScorecardLine(make_measurable("m1"), {W1: Decimal("12"), W2: None})],
+        lines=[ScorecardLine(make_measurable("m1"), {W1: Decimal("12"), W2: None}, {W1: "on_track", W2: "off_track"})],
     )
     body = client.get("/api/teams/t1/scorecard").json()
     assert body["weeks"] == ["2026-11-02", "2026-11-09"]

@@ -4,6 +4,7 @@ from app.core.base import BaseService, new_id
 from app.core.clock import Clock
 from app.core.errors import ConflictError, DomainValidationError
 from app.modules.issue.models import Issue
+from app.modules.measurable.rules import OFF_TRACK
 from app.modules.issue.repository import IssueRepository
 
 
@@ -28,11 +29,12 @@ class IssueService(BaseService[Issue]):
         )
         return self.repository.add(issue)
 
-    def make_it_an_issue(self, owner_id: str, measurable, week_start: date) -> tuple[Issue, bool]:
+    def make_it_an_issue(self, owner_id: str, measurable, week_start: date, status: str) -> tuple[Issue, bool]:
         """The Scorecard's 'Make it an Issue': validates the week, then create-or-return (no duplicates)."""
         if week_start.weekday() != 0 or week_start not in self.clock.last_n_weeks(13):
             raise DomainValidationError("week_start must be a Monday within the 13-week scorecard window")
-        # TODO(rules): also require the cell to be off-track once the status rule module exists.
+        if status != OFF_TRACK:
+            raise DomainValidationError("Only an off-track Measurable week can be made an Issue")
         title = f"{measurable.name} — week of {week_start.isoformat()}"
         return self.get_or_create_from_source(measurable.team_id, owner_id, title, measurable.id, week_start)
 

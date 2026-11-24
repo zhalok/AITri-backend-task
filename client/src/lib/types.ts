@@ -10,7 +10,10 @@ export interface Measurable {
   id: string; team_id: string; owner_id: string; name: string; unit: string
   goal_type: GoalType; goal_value: string | null; goal_min: string | null; goal_max: string | null
 }
-export interface ScorecardRow { measurable: Measurable; scores: Record<string, string | null> }
+export type MeasurableStatus = 'on_track' | 'off_track' | 'pending'
+export interface ScorecardRow {
+  measurable: Measurable; scores: Record<string, string | null>; statuses: Record<string, MeasurableStatus>
+}
 export interface Scorecard { weeks: string[]; rows: ScorecardRow[] }
 
 export interface Issue {

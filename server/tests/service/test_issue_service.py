@@ -64,7 +64,7 @@ def test_solving_twice_is_a_conflict(service):
 # ---- Make it an Issue ----------------------------------------------------------------------------
 
 def test_make_it_an_issue_titles_it_with_measurable_and_week_and_owns_it_by_the_clicker(service):
-    issue, created = service.make_it_an_issue("u3", make_measurable(name="New deals closed"), date(2026, 11, 2))
+    issue, created = service.make_it_an_issue("u3", make_measurable(name="New deals closed"), date(2026, 11, 2), "off_track")
     assert created is True
     assert issue.title == "New deals closed — week of 2026-11-02"
     assert issue.owner_id == "u3" and issue.team_id == "t1"
@@ -72,8 +72,8 @@ def test_make_it_an_issue_titles_it_with_measurable_and_week_and_owns_it_by_the_
 
 
 def test_make_it_an_issue_twice_returns_the_same_issue(service, repo):
-    first, created1 = service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2))
-    second, created2 = service.make_it_an_issue("u3", make_measurable(), date(2026, 11, 2))
+    first, created1 = service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2), "off_track")
+    second, created2 = service.make_it_an_issue("u3", make_measurable(), date(2026, 11, 2), "off_track")
     assert (created1, created2) == (True, False)
     assert second.id == first.id
     assert second.owner_id == "u2"  # the original owner is kept
@@ -81,38 +81,45 @@ def test_make_it_an_issue_twice_returns_the_same_issue(service, repo):
 
 
 def test_a_solved_issue_no_longer_blocks_a_new_one_for_the_same_week(service, repo):
-    first, _ = service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2))
+    first, _ = service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2), "off_track")
     service.solve(first, "fixed", None)
-    second, created = service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2))
+    second, created = service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2), "off_track")
     assert created is True and second.id != first.id
 
 
 def test_different_measurables_or_weeks_are_different_issues(service, repo):
-    service.make_it_an_issue("u2", make_measurable(id="m1"), date(2026, 11, 2))
-    service.make_it_an_issue("u2", make_measurable(id="m2"), date(2026, 11, 2))
-    service.make_it_an_issue("u2", make_measurable(id="m1"), date(2026, 10, 26))
+    service.make_it_an_issue("u2", make_measurable(id="m1"), date(2026, 11, 2), "off_track")
+    service.make_it_an_issue("u2", make_measurable(id="m2"), date(2026, 11, 2), "off_track")
+    service.make_it_an_issue("u2", make_measurable(id="m1"), date(2026, 10, 26), "off_track")
     assert len(repo.items) == 3
 
 
 @pytest.mark.parametrize("week", [date(2026, 11, 3), date(2026, 11, 8), date(2026, 11, 10)])  # Tue, Sun, Tue
 def test_make_it_an_issue_rejects_a_week_that_is_not_a_monday(service, week):
     with pytest.raises(DomainValidationError):
-        service.make_it_an_issue("u2", make_measurable(), week)
+        service.make_it_an_issue("u2", make_measurable(), week, "off_track")
 
 
 @pytest.mark.parametrize("week", [date(2026, 8, 10), date(2026, 11, 16), date(2027, 1, 4)])
 def test_make_it_an_issue_rejects_weeks_outside_the_13_week_window(service, week):
     with pytest.raises(DomainValidationError):
-        service.make_it_an_issue("u2", make_measurable(), week)
+        service.make_it_an_issue("u2", make_measurable(), week, "off_track")
 
 
 @pytest.mark.parametrize("week", [date(2026, 8, 17), date(2026, 11, 9)])  # oldest and current week
 def test_make_it_an_issue_accepts_the_window_boundaries(service, week):
-    _, created = service.make_it_an_issue("u2", make_measurable(), week)
+    _, created = service.make_it_an_issue("u2", make_measurable(), week, "off_track")
     assert created is True
 
 
 def test_window_moves_with_the_clock(repo):
     later = IssueService(repo, __import__("tests.helpers", fromlist=["make_clock"]).make_clock(utc("2026-11-16T15:00:00Z")))
-    _, created = later.make_it_an_issue("u2", make_measurable(), date(2026, 11, 16))  # now the current week
+    _, created = later.make_it_an_issue("u2", make_measurable(), date(2026, 11, 16), "off_track")  # now the current week
     assert created is True
+
+
+@pytest.mark.parametrize("status", ["on_track", "pending"])
+def test_make_it_an_issue_requires_an_off_track_cell(service, repo, status):
+    with pytest.raises(DomainValidationError):
+        service.make_it_an_issue("u2", make_measurable(), date(2026, 11, 2), status)
+    assert repo.items == [] or len(repo.items) == 0

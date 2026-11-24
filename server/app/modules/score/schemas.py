@@ -20,6 +20,7 @@ class ScoreOut(BaseModel):
 class ScorecardRow(BaseModel):
     measurable: MeasurableOut
     scores: dict[date, Decimal | None]
+    statuses: dict[date, str]
 
 
 class ScorecardOut(BaseModel):
@@ -28,5 +29,5 @@ class ScorecardOut(BaseModel):
 
     @classmethod
     def from_scorecard(cls, card) -> "ScorecardOut":
-        rows = [ScorecardRow(measurable=l.measurable, scores=l.scores) for l in card.lines]
+        rows = [ScorecardRow(measurable=l.measurable, scores=l.scores, statuses=l.statuses) for l in card.lines]
         return cls(weeks=card.weeks, rows=rows)
