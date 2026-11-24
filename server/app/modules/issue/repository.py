@@ -31,6 +31,11 @@ class IssueRepository(BaseRepository[Issue]):
         stmt = select(Issue).where(Issue.solved_in_meeting_id == meeting_id).order_by(Issue.solved_at, Issue.id)
         return list(self.session.scalars(stmt))
 
+    def get_for_update(self, issue_id: str) -> Issue | None:
+        """The row, freshly read and locked until this transaction ends."""
+        stmt = select(Issue).where(Issue.id == issue_id).with_for_update().execution_options(populate_existing=True)
+        return self.session.execute(stmt).scalar_one_or_none()
+
     def find_unsolved_by_source(self, measurable_id: str, week_start: date) -> Issue | None:
         stmt = select(Issue).where(
             Issue.source_measurable_id == measurable_id,

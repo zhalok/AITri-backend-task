@@ -11,6 +11,11 @@ from app.modules.user.models import User
 router = APIRouter(tags=["scores"])
 
 
+def seen_arg(body: ScoreIn) -> dict:
+    """`seen` is passed on only when the client sent it (even as null): absent means no check."""
+    return {"seen": body.seen} if "seen" in body.model_fields_set else {}
+
+
 @router.get("/teams/{team_id}/scorecard", response_model=ScorecardOut)
 def get_scorecard(
     team_id: str, actor: User = Depends(get_current_user), uc: ScoreUseCase = Depends(get_score_usecase)
@@ -26,7 +31,7 @@ def set_score(
     actor: User = Depends(get_current_user),
     uc: ScoreUseCase = Depends(get_score_usecase),
 ):
-    return uc.set_score(actor, measurable_id, week_start, body.value)
+    return uc.set_score(actor, measurable_id, week_start, body.value, **seen_arg(body))
 
 
 admin_router = APIRouter(prefix="/admin", tags=["admin: any team"])
@@ -41,4 +46,4 @@ def admin_get_scorecard(team_id: str, actor: User = Depends(get_current_user), u
 def admin_set_score(
     measurable_id: str, week_start: date, body: ScoreIn, actor: User = Depends(get_current_user), uc: ScoreUseCase = Depends(get_score_usecase)
 ):
-    return uc.admin_set_score(actor, measurable_id, week_start, body.value)
+    return uc.admin_set_score(actor, measurable_id, week_start, body.value, **seen_arg(body))

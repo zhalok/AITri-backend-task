@@ -1,5 +1,6 @@
 from datetime import date
 
+from app.core.concurrency import UNSET
 from app.modules.issue.models import Issue
 from app.modules.issue.service import IssueService
 from app.modules.measurable.service import MeasurableService
@@ -46,16 +47,16 @@ class IssueUseCase:
         self.rbac.require(actor, Action.ANY_TEAM_CREATE_ISSUE)
         return self.issues.create(team_id, actor.id, title, priority)
 
-    def set_priority(self, actor: User, issue_id: str, priority: int | None) -> Issue:
+    def set_priority(self, actor: User, issue_id: str, priority: int | None, seen=UNSET) -> Issue:
         self.rbac.require(actor, Action.SET_ISSUE_PRIORITY)
         issue = self.issues.get_or_raise(issue_id)
         self.scope.require_member(actor, issue.team_id)
-        return self.issues.set_priority(issue, priority)
+        return self.issues.set_priority(issue, priority, seen)
 
-    def admin_set_priority(self, actor: User, issue_id: str, priority: int | None) -> Issue:
+    def admin_set_priority(self, actor: User, issue_id: str, priority: int | None, seen=UNSET) -> Issue:
         self.rbac.require(actor, Action.ANY_TEAM_SET_ISSUE_PRIORITY)
         issue = self.issues.get_or_raise(issue_id)
-        return self.issues.set_priority(issue, priority)
+        return self.issues.set_priority(issue, priority, seen)
 
     def solve(self, actor: User, issue_id: str, note: str) -> Issue:
         self.rbac.require(actor, Action.SOLVE_ISSUE)
