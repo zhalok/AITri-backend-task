@@ -25,4 +25,4 @@ class RockUseCase:
     def _current_rocks(self, team_id: str) -> list[RockDetail]:
         rocks = self.rocks.list_current(team_id)
         by_rock = self.milestones.grouped_by_rock([r.id for r in rocks])
-        return [RockDetail(rock=r, milestones=by_rock.get(r.id, [])) for r in rocks]
+        return [self.rocks.detail(r, by_rock.get(r.id, [])) for r in rocks]

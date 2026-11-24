@@ -80,15 +80,15 @@ def test_measurables_list(client, mock_usecase, actor):
 def test_rocks_come_back_with_their_milestones_nested(client, mock_usecase, actor):
     uc = mock_usecase(get_rock_usecase)
     uc.list_current_rocks.return_value = [
-        RockDetail(make_rock("r1"), [make_milestone("ms1", done=True), make_milestone("ms2", due_date=date(2026, 12, 15))]),
-        RockDetail(make_rock("r2", status="complete"), []),
+        RockDetail(make_rock("r1"), [make_milestone("ms1", done=True), make_milestone("ms2", due_date=date(2026, 12, 15))], "on_track", 50),
+        RockDetail(make_rock("r2", status="complete"), [], "complete", 100),
     ]
     rocks = client.get("/api/teams/t1/rocks").json()
     assert [r["id"] for r in rocks] == ["r1", "r2"]
     assert [(m["id"], m["done"], m["due_date"]) for m in rocks[0]["milestones"]] == [
         ("ms1", True, "2026-12-01"), ("ms2", False, "2026-12-15")]
     assert rocks[1]["milestones"] == [] and rocks[1]["status"] == "complete"
-    assert set(rocks[0]) == {"id", "team_id", "owner_id", "title", "quarter", "status", "milestones"}
+    assert set(rocks[0]) == {"id", "team_id", "owner_id", "title", "quarter", "status", "progress", "milestones"}
     uc.list_current_rocks.assert_called_once_with(actor, "t1")
 
 

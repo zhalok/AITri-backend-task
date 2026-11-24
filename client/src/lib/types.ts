@@ -30,8 +30,13 @@ export interface Todo {
 
 export interface Milestone { id: string; rock_id: string; title: string; due_date: string; done: boolean }
 export interface Rock {
-  id: string; team_id: string; owner_id: string; title: string; quarter: string; status: string
+  id: string; team_id: string; owner_id: string; title: string; quarter: string
+  status: 'on_track' | 'off_track' | 'complete'; progress: number
   milestones: Milestone[]
+}
+
+export interface CompletionRate {
+  week_start: string; due: number; done: number; rate: number | null; meets_target: boolean | null; target: number
 }
 
 export type SectionName = 'scorecard' | 'ids' | 'conclude'

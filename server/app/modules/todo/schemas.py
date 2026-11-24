@@ -9,6 +9,16 @@ class TodoCreate(BaseModel):
     owner_id: str
 
 
+class CompletionRateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    week_start: date
+    due: int
+    done: int
+    rate: int | None
+    meets_target: bool | None
+    target: int = 90
+
+
 class TodoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

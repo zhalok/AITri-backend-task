@@ -11,6 +11,7 @@ class RockOut(BaseModel):
     title: str
     quarter: str
     status: str
+    progress: int
     milestones: list[MilestoneOut]
 
     @classmethod
@@ -18,5 +19,5 @@ class RockOut(BaseModel):
         r = detail.rock
         return cls(
             id=r.id, team_id=r.team_id, owner_id=r.owner_id, title=r.title,
-            quarter=r.quarter, status=r.status, milestones=detail.milestones,
+            quarter=r.quarter, status=detail.status, progress=detail.progress, milestones=detail.milestones,
         )

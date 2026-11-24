@@ -5,6 +5,7 @@ from app.core.base import BaseService, new_id
 from app.core.clock import Clock
 from app.core.errors import DomainValidationError
 from app.modules.todo.models import Todo
+from app.modules.todo.rules import CompletionRate, completion_rate
 from app.modules.todo.repository import TodoRepository
 
 
@@ -29,6 +30,10 @@ class TodoService(BaseService[Todo]):
 
     def is_overdue(self, todo: Todo) -> bool:
         return todo.done_at is None and todo.due_date < self.clock.today()
+
+    def last_closed_week_rate(self, team_id: str) -> CompletionRate:
+        week = self.clock.last_closed_week_start()
+        return completion_rate(self.repository.list_for_team(team_id), week, self.clock.week_end(week))
 
     def view(self, todo: Todo) -> TodoView:
         return TodoView(todo=todo, is_overdue=self.is_overdue(todo))

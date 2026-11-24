@@ -4,13 +4,14 @@ import { Empty, ErrorNote, LoadingRows, SectionCard } from '@/components/Section
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { useIssues, useMembers, useSetTodoDone, useTodos } from '@/hooks/queries'
-import { dateTimeLabel, dueLabel } from '@/lib/format'
+import { useCompletionRate, useIssues, useMembers, useSetTodoDone, useTodos } from '@/hooks/queries'
+import { dateTimeLabel, dueLabel, weekLabel } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export default function TodosSection({ teamId }: { teamId: string }) {
   const { canWrite } = useAuth()
   const todos = useTodos(teamId)
+  const completion = useCompletionRate(teamId)
   const members = useMembers(teamId)
   const unsolved = useIssues(teamId, 'unsolved')
   const solved = useIssues(teamId, 'solved')
@@ -33,6 +34,25 @@ export default function TodosSection({ teamId }: { teamId: string }) {
         </div>
       }
     >
+      {completion.data && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm"
+             data-testid="completion-rate">
+          <span className="text-muted-foreground">Last closed week (from {weekLabel(completion.data.week_start)}):</span>
+          {completion.data.rate === null ? (
+            <span>No To-Dos were due</span>
+          ) : (
+            <>
+              <span className="font-medium tabular-nums">{completion.data.rate}%</span>
+              <span className="text-muted-foreground">
+                ({completion.data.done} of {completion.data.due} done on time · target {completion.data.target}%)
+              </span>
+              <Badge variant={completion.data.meets_target ? 'default' : 'destructive'}>
+                {completion.data.meets_target ? 'Meets target' : 'Below target'}
+              </Badge>
+            </>
+          )}
+        </div>
+      )}
       {todos.isLoading && <LoadingRows />}
       {todos.error && <ErrorNote error={todos.error} />}
       {todos.data && visible.length === 0 && <Empty>{hideDone ? 'No open To-Dos.' : 'No To-Dos yet.'}</Empty>}
