@@ -147,8 +147,6 @@ function useMeetingAction<V>(teamId: string, run: (scope: string, v: V) => Promi
 
 export const useStartMeeting = (teamId: string) =>
   useMeetingAction<void>(teamId, (scope) => api.post<MeetingState>(`${scope}/teams/${teamId}/meetings`))
-export const useJoinMeeting = (teamId: string) =>
-  useMeetingAction<string>(teamId, (scope, id) => api.post<MeetingState>(`${scope}/meetings/${id}/join`))
 export const useAdvanceMeeting = (teamId: string) =>
   useMeetingAction<string>(teamId, (scope, id) => api.post<MeetingState>(`${scope}/meetings/${id}/advance`))
 export const useEndMeeting = (teamId: string) =>

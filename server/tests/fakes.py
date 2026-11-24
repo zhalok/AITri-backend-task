@@ -74,6 +74,10 @@ class FakeMeetingRepo(FakeRepo):
     def add_attendee(self, meeting_id, user_id):
         self.attendees.setdefault(meeting_id, set()).add(user_id)
 
+    def remove_attendee(self, meeting_id, user_id):
+        self.attendees.get(meeting_id, set()).discard(user_id)
+        self.rating_rows.get(meeting_id, {}).pop(user_id, None)
+
     def attendee_ids(self, meeting_id):
         return sorted(self.attendees.get(meeting_id, set()))
 

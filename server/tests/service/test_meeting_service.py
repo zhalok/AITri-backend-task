@@ -233,3 +233,25 @@ def test_end_closes_the_open_section(service, repo, meeting):
 def test_state_lists_the_sections_entered_in_order(service, meeting):
     to_conclude(service, meeting)
     assert [s.section for s in service.state(meeting).sections] == ["scorecard", "ids", "conclude"]
+
+
+# ---- leaving ------------------------------------------------------------------------------------
+
+def test_an_attendee_can_leave_and_their_rating_goes_with_them(service, repo, meeting):
+    service.join(meeting, make_user("u3"))
+    to_conclude(service, meeting)
+    service.rate(meeting, make_user("u3"), 8)
+    service.leave(meeting, make_user("u3"))
+    assert repo.attendee_ids(meeting.id) == ["u2"] and service.state(meeting).ratings == {}
+
+
+def test_the_facilitator_cannot_leave(service, meeting):
+    with pytest.raises(ConflictError):
+        service.leave(meeting, make_user("u2"))
+
+
+def test_nobody_can_leave_an_ended_meeting(service, meeting):
+    service.join(meeting, make_user("u3"))
+    service.end(meeting)
+    with pytest.raises(DomainValidationError):
+        service.leave(meeting, make_user("u3"))

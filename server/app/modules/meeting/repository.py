@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
@@ -29,6 +29,11 @@ class MeetingRepository(BaseRepository[Meeting]):
     def add_attendee(self, meeting_id: str, user_id: str) -> None:
         stmt = insert(MeetingAttendee).values(meeting_id=meeting_id, user_id=user_id).on_conflict_do_nothing()
         self.session.execute(stmt)
+
+    def remove_attendee(self, meeting_id: str, user_id: str) -> None:
+        # A rating belongs to an attendee (foreign key), so it goes with them.
+        self.session.execute(delete(MeetingRating).where(MeetingRating.meeting_id == meeting_id, MeetingRating.user_id == user_id))
+        self.session.execute(delete(MeetingAttendee).where(MeetingAttendee.meeting_id == meeting_id, MeetingAttendee.user_id == user_id))
 
     def attendee_ids(self, meeting_id: str) -> list[str]:
         stmt = select(MeetingAttendee.user_id).where(MeetingAttendee.meeting_id == meeting_id).order_by(MeetingAttendee.user_id)

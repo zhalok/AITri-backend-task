@@ -1,6 +1,5 @@
-import { ArrowRight, Flag, ShieldAlert } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, DoorClosed, Flag, ShieldAlert } from 'lucide-react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { AgendaTimer } from '@/components/meeting/AgendaTimer'
 import { Attendees } from '@/components/meeting/Attendees'
@@ -12,22 +11,22 @@ import ScorecardSection from '@/components/ScorecardSection'
 import { Empty, LoadingRows } from '@/components/SectionCard'
 import TodosSection from '@/components/TodosSection'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
-  useActiveMeeting, useAdvanceMeeting, useEndMeeting, useJoinMeeting, useMeeting, useMembers, useTeams,
+  useActiveMeeting, useAdvanceMeeting, useEndMeeting, useMeeting, useMembers, useTeams,
 } from '@/hooks/queries'
-import { useTeamSocket } from '@/hooks/useTeamSocket'
+import { useMeetingSocket, useTeamSocket } from '@/hooks/useTeamSocket'
 import { ApiError } from '@/lib/api'
 import { SECTION_LABEL } from '@/lib/format'
 
 export default function MeetingPage() {
   const { teamId = '', meetingId } = useParams()
-  useTeamSocket(teamId) // same live feed as the Team page: edits made on either page reach both
   return meetingId ? <MeetingRoom teamId={teamId} meetingId={meetingId} /> : <FindMeeting teamId={teamId} />
 }
 
 /** /teams/:id/meeting with no meeting id: go to the active meeting, or offer to start one. */
 function FindMeeting({ teamId }: { teamId: string }) {
+  useTeamSocket(teamId) // not in a room yet, so only the data feed: finding a meeting is not attending it
   const active = useActiveMeeting(teamId)
   if (active.isLoading) return <LoadingRows />
   if (active.data) return <Navigate to={`/teams/${teamId}/meeting/${active.data.id}`} replace />
@@ -40,24 +39,17 @@ function FindMeeting({ teamId }: { teamId: string }) {
 }
 
 function MeetingRoom({ teamId, meetingId }: { teamId: string; meetingId: string }) {
+  const { leave } = useMeetingSocket(teamId) // the live feed, and this socket IS you being in the meeting
+  const navigate = useNavigate()
   const { user } = useAuth()
   const teams = useTeams()
   const members = useMembers(teamId)
   const query = useMeeting(teamId, meetingId)
   const meeting = query.data
-  const join = useJoinMeeting(teamId)
   const advance = useAdvanceMeeting(teamId)
   const end = useEndMeeting(teamId)
-  const joined = useRef(false)
 
-  // Anyone who can read the team may join. Opening the page is joining; refreshing is a no-op.
-  useEffect(() => {
-    if (!meeting || meeting.ended_at || !user || joined.current) return
-    if (!meeting.attendee_ids.includes(user.id)) {
-      joined.current = true
-      join.mutate(meeting.id)
-    }
-  }, [meeting, user, join])
+  // No join call: opening this page connects the meeting socket, and that connection is what makes you an attendee.
 
   if (query.error instanceof ApiError && [403, 404].includes(query.error.status)) {
     return (
@@ -75,14 +67,27 @@ function MeetingRoom({ teamId, meetingId }: { teamId: string; meetingId: string 
   const facilitator = members.data?.find((u) => u.id === meeting.facilitator_id)?.name ?? meeting.facilitator_id
   const section = meeting.current_section
 
+  function leaveMeeting() {
+    leave()
+    navigate(`/teams/${teamId}`)
+  }
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
+        <Link to={`/teams/${teamId}`} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+          <ArrowLeft /> Team
+        </Link>
         <h1 className="text-xl font-semibold tracking-tight">
           {teams.data?.find((t) => t.id === teamId)?.name ?? 'Team'} · Level 10 Meeting
         </h1>
         <Badge variant={ended ? 'secondary' : 'default'}>{ended ? 'Ended' : SECTION_LABEL[section]}</Badge>
         <span className="text-sm text-muted-foreground">Facilitator: {facilitator}</span>
+        {!isFacilitator && !ended && (
+          <Button className="ml-auto" variant="outline" onClick={leaveMeeting}>
+            <DoorClosed /> Leave meeting
+          </Button>
+        )}
         {isFacilitator && !ended && (
           <div className="ml-auto flex gap-2">
             {section !== 'conclude' && (

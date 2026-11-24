@@ -55,6 +55,13 @@ class MeetingService(BaseService[Meeting]):
         self._require_active(meeting)
         self.repository.add_attendee(meeting.id, user.id)
 
+    def leave(self, meeting: Meeting, user: User) -> None:
+        """An attendee walks out. The facilitator cannot: nobody could run the meeting, so they end it."""
+        self._require_active(meeting)
+        if meeting.facilitator_id == user.id:
+            raise ConflictError("The facilitator ends the meeting instead of leaving it")
+        self.repository.remove_attendee(meeting.id, user.id)
+
     def require_facilitator(self, meeting: Meeting, user: User) -> None:
         if meeting.facilitator_id != user.id:
             raise ForbiddenError("Only the facilitator can do this")

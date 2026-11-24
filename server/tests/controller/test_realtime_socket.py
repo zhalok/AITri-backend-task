@@ -8,7 +8,8 @@ from starlette.websockets import WebSocketDisconnect
 
 from app.core.errors import ForbiddenError, UnauthorizedError
 from app.main import create_app
-from app.modules.realtime import controller
+from tests.helpers import make_user
+from app.modules.realtime import controller, presence
 
 
 class FakePubSub:
@@ -44,10 +45,17 @@ def client():
     return TestClient(create_app())
 
 
-def connect(client, monkeypatch, *, authorize=lambda token, team: None, redis=None):
+EVENTS = []
+
+
+def connect(client, monkeypatch, *, path="sync", authorize=lambda token, team: make_user("u2"), redis=None):
+    EVENTS.clear()
+    presence._open.clear()
+    monkeypatch.setattr(controller, "join_active_meeting", lambda user, team: EVENTS.append(("join", user.id, team)))
+    monkeypatch.setattr(controller, "leave_active_meeting", lambda user, team: EVENTS.append(("leave", user.id, team)))
     monkeypatch.setattr(controller, "authorize", authorize)
     monkeypatch.setattr(controller, "new_redis", lambda: redis or FakeRedis())
-    return client.websocket_connect("/api/ws/teams/t1")
+    return client.websocket_connect(f"/api/ws/teams/t1/{path}")
 
 
 def test_authenticated_member_gets_ready_then_changes(client, monkeypatch):
@@ -87,3 +95,45 @@ def test_the_first_frame_must_be_auth(client, monkeypatch):
         with pytest.raises(WebSocketDisconnect) as e:
             ws.receive_json()
     assert e.value.code == 4401
+
+
+def open_ws(client, monkeypatch, path):
+    ws = connect(client, monkeypatch, path=path).__enter__()
+    ws.send_json({"type": "auth", "token": "tok"})
+    assert ws.receive_json() == {"type": "ready"}
+    return ws
+
+
+def settle():
+    import time
+    time.sleep(0.3)  # the server finishes its cleanup just after the client's close
+    return list(EVENTS)
+
+
+def test_the_meeting_endpoint_joins_on_connect_and_leaves_on_close(client, monkeypatch):
+    ws = open_ws(client, monkeypatch, "meeting")
+    assert EVENTS == [("join", "u2", "t1")]
+    ws.close()
+    assert settle() == [("join", "u2", "t1"), ("leave", "u2", "t1")]
+
+
+def test_any_kind_of_disconnect_leaves(client, monkeypatch):
+    ws = open_ws(client, monkeypatch, "meeting")
+    ws.close(code=1006)  # an abnormal drop, like a lost connection
+    assert ("leave", "u2", "t1") in settle()
+
+
+def test_the_sync_endpoint_never_changes_attendance(client, monkeypatch):
+    ws = open_ws(client, monkeypatch, "sync")  # the Team page's endpoint
+    ws.close()
+    assert settle() == []
+
+
+def test_a_second_open_meeting_tab_keeps_the_user_in_until_the_last_one_closes(client, monkeypatch):
+    first = open_ws(client, monkeypatch, "meeting")
+    with client.websocket_connect("/api/ws/teams/t1/meeting") as second:
+        second.send_json({"type": "auth", "token": "tok"})
+        assert second.receive_json() == {"type": "ready"}
+        first.close()
+        assert ("leave", "u2", "t1") not in settle()
+    assert ("leave", "u2", "t1") in settle()
