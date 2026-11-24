@@ -46,7 +46,7 @@ services:
     expose:
       - "8000"
     healthcheck:  # becomes healthy once migrations and the seed have run and uvicorn is serving
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/openapi.json')"]
       interval: 3s
       timeout: 3s
       retries: 40
