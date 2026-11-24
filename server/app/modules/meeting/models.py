@@ -59,3 +59,22 @@ class MeetingRating(Base):
     meeting_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     rating: Mapped[int] = mapped_column(Integer)
+
+
+class MeetingSection(Base):
+    """One row per section a meeting has entered. Open while `ended_at` is null.
+
+    This is the meeting's event history: per-section durations, and the last completed section, come
+    from here. Over-time is not stored; it is `now - started_at > limit`.
+    """
+
+    __tablename__ = "meeting_sections"
+    __table_args__ = (
+        CheckConstraint("section in ('scorecard','ids','conclude')", name="ck_meeting_section_name"),
+        CheckConstraint("ended_at is null or ended_at >= started_at", name="ck_meeting_section_end_after_start"),
+    )
+
+    meeting_id: Mapped[str] = mapped_column(ForeignKey("meetings.id"), primary_key=True)
+    section: Mapped[str] = mapped_column(String(16), primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

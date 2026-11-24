@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.core.base import BaseService, new_id
 from app.core.clock import Clock
 from app.core.errors import ConflictError, DomainValidationError, ForbiddenError
-from app.modules.meeting.models import SECTION_MINUTES, SECTION_ORDER, Meeting, Section
+from app.modules.meeting.models import SECTION_MINUTES, SECTION_ORDER, Meeting, MeetingSection, Section
 from app.modules.meeting.repository import MeetingRepository
 from app.modules.user.models import User
 
@@ -26,6 +26,7 @@ class MeetingState:
     attendee_ids: list[str]
     ratings: dict[str, int]
     average_rating: float | None
+    sections: list[MeetingSection] = field(default_factory=list)  # the sections entered so far, in order
 
 
 class MeetingService(BaseService[Meeting]):
@@ -40,12 +41,13 @@ class MeetingService(BaseService[Meeting]):
         return self.repository.get_active_for_team(team_id)
 
     def start(self, team_id: str, facilitator: User) -> Meeting:
-        now = self.clock.now()
+        now = self.clock.live_now()
         meeting = Meeting(
             id=new_id(), team_id=team_id, facilitator_id=facilitator.id,
             started_at=now, current_section=Section.SCORECARD, section_started_at=now,
         )
         self.repository.add_meeting(meeting)
+        self.repository.open_section(meeting.id, Section.SCORECARD, now)
         self.repository.add_attendee(meeting.id, facilitator.id)
         return meeting
 
@@ -63,14 +65,19 @@ class MeetingService(BaseService[Meeting]):
         idx = SECTION_ORDER.index(Section(meeting.current_section))
         if idx == len(SECTION_ORDER) - 1:
             raise ConflictError("Already in the last section; end the meeting instead")
+        now = self.clock.live_now()
+        self.repository.close_open_section(meeting.id, now)
         meeting.current_section = SECTION_ORDER[idx + 1]
-        meeting.section_started_at = self.clock.now()
+        meeting.section_started_at = now
+        self.repository.open_section(meeting.id, meeting.current_section, now)
         self.repository.save()
         return meeting
 
     def end(self, meeting: Meeting) -> Meeting:
         self._require_active(meeting)
-        meeting.ended_at = self.clock.now()
+        now = self.clock.live_now()
+        self.repository.close_open_section(meeting.id, now)
+        meeting.ended_at = now
         self.repository.save()
         return meeting
 
@@ -84,7 +91,7 @@ class MeetingService(BaseService[Meeting]):
 
     def state(self, meeting: Meeting) -> MeetingState:
         """Everything a client needs to render the meeting. The server owns the timer."""
-        end = meeting.ended_at or self.clock.now()
+        end = meeting.ended_at or self.clock.live_now()
         elapsed = max(0, int((end - meeting.section_started_at).total_seconds()))
         duration = SECTION_MINUTES[Section(meeting.current_section)] * 60
         ratings = self.repository.ratings(meeting.id)
@@ -98,6 +105,7 @@ class MeetingService(BaseService[Meeting]):
             current_section=meeting.current_section, section_started_at=meeting.section_started_at,
             section_duration_seconds=duration, section_elapsed_seconds=elapsed, over_time=elapsed > duration,
             attendee_ids=self.repository.attendee_ids(meeting.id), ratings=ratings, average_rating=avg,
+            sections=sorted(self.repository.sections(meeting.id), key=lambda x: SECTION_ORDER.index(Section(x.section))),
         )
 
     @staticmethod

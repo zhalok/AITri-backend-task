@@ -1,10 +1,12 @@
-from sqlalchemy import select
+from datetime import datetime
+
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
 from app.core.base import BaseRepository
 from app.core.errors import ConflictError
-from app.modules.meeting.models import Meeting, MeetingAttendee, MeetingRating
+from app.modules.meeting.models import Meeting, MeetingAttendee, MeetingRating, MeetingSection
 
 
 class MeetingRepository(BaseRepository[Meeting]):
@@ -43,3 +45,19 @@ class MeetingRepository(BaseRepository[Meeting]):
     def ratings(self, meeting_id: str) -> dict[str, int]:
         stmt = select(MeetingRating).where(MeetingRating.meeting_id == meeting_id)
         return {r.user_id: r.rating for r in self.session.scalars(stmt)}
+
+    def open_section(self, meeting_id: str, section: str, at: datetime) -> None:
+        self.session.add(MeetingSection(meeting_id=meeting_id, section=section, started_at=at))
+        self.session.flush()
+
+    def close_open_section(self, meeting_id: str, at: datetime) -> None:
+        stmt = (
+            update(MeetingSection)
+            .where(MeetingSection.meeting_id == meeting_id, MeetingSection.ended_at.is_(None))
+            .values(ended_at=at)
+        )
+        self.session.execute(stmt)
+
+    def sections(self, meeting_id: str) -> list[MeetingSection]:
+        stmt = select(MeetingSection).where(MeetingSection.meeting_id == meeting_id).order_by(MeetingSection.started_at)
+        return list(self.session.scalars(stmt))

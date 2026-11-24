@@ -42,3 +42,13 @@ export function goalText(m: Measurable): string {
 }
 
 export const roleLabel = (role: string) => role.replace('_', ' ')
+
+/** 75 -> "1:15". Whole seconds, minutes unpadded, as on a stopwatch. */
+export function clockText(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+export const SECTION_LABEL = { scorecard: 'Scorecard', ids: 'IDS', conclude: 'Conclude' } as const
+export const SECTION_MINUTES = { scorecard: 5, ids: 60, conclude: 10 } as const
+export const SECTION_ORDER = ['scorecard', 'ids', 'conclude'] as const

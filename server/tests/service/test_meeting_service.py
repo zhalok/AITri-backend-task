@@ -210,3 +210,26 @@ def test_average_rating_is_one_decimal_rounded_half_up(service, repo, meeting, r
     for i, r in enumerate(ratings):
         repo.upsert_rating(meeting.id, f"r{i}", r)
     assert service.state(meeting).average_rating == (None if expected is None else pytest.approx(expected))
+
+
+# ---- section history ----------------------------------------------------------------------------
+
+def test_start_opens_the_scorecard_section(service, repo, meeting):
+    rows = repo.sections(meeting.id)
+    assert [(r.section, r.started_at, r.ended_at) for r in rows] == [("scorecard", NOW, None)]
+
+
+def test_advance_closes_one_section_and_opens_the_next(service, repo, meeting):
+    service.advance(meeting)
+    rows = repo.sections(meeting.id)
+    assert [(r.section, r.ended_at is None) for r in rows] == [("scorecard", False), ("ids", True)]
+
+
+def test_end_closes_the_open_section(service, repo, meeting):
+    service.end(meeting)
+    assert all(r.ended_at is not None for r in repo.sections(meeting.id))
+
+
+def test_state_lists_the_sections_entered_in_order(service, meeting):
+    to_conclude(service, meeting)
+    assert [s.section for s in service.state(meeting).sections] == ["scorecard", "ids", "conclude"]

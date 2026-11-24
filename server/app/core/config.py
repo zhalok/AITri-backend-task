@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     app_now: datetime = datetime(2026, 11, 11, 15, 0, 0, tzinfo=timezone.utc)
     company_timezone: str = "America/Chicago"
 
+    # Real-time fan-out: DB change events are republished here, one channel per team.
+    redis_url: str = "redis://localhost:6379/0"
+
     # Auth. Token lifetime uses the real clock on purpose: APP_NOW is a frozen business clock,
     # and a frozen clock must not decide whether a session is still valid.
     jwt_secret: str = "dev-only-secret-change-me-in-production-32b"

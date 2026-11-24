@@ -7,5 +7,5 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   // In dev the Vite server proxies the API to FastAPI. In production FastAPI serves the build itself.
-  server: { proxy: { '/api': 'http://localhost:8000' } },
+  server: { proxy: { '/api': { target: 'http://localhost:8000', ws: true } } },
 })

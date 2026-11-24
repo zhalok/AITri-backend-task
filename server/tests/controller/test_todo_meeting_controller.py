@@ -80,6 +80,7 @@ def test_start_returns_201_and_the_full_state(client, meetings, actor):
         "ended_at": None, "current_section": "scorecard", "section_started_at": "2026-11-11T15:00:00Z",
         "section_duration_seconds": 300, "section_elapsed_seconds": 42, "over_time": False,
         "attendee_ids": ["u2", "u3"], "ratings": {}, "average_rating": None,
+        "sections": [],
     }
     meetings.start.assert_called_once_with(actor, "t1")
 

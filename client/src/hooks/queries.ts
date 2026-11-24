@@ -2,9 +2,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/auth/AuthProvider'
 import { api } from '@/lib/api'
-import type { Issue, Rock, Scorecard, Team, Todo, User } from '@/lib/types'
+import type { Issue, MeetingState, Rock, Scorecard, Team, Todo, User } from '@/lib/types'
 
-const key = (teamId: string, part: string, ...rest: unknown[]) => ['team', teamId, part, ...rest]
+export const key = (teamId: string, part: string, ...rest: unknown[]) => ['team', teamId, part, ...rest]
 
 export function useTeams() {
   const { scope } = useAuth()
@@ -111,3 +111,48 @@ export function useSetTodoDone(teamId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: key(teamId, 'todos') }),
   })
 }
+
+// ---- meetings -------------------------------------------------------------------------------------
+// Meeting data is keyed under its team, so the live socket can refresh it with one prefix.
+
+export function useActiveMeeting(teamId: string) {
+  const { scope } = useAuth()
+  return useQuery({
+    queryKey: key(teamId, 'meeting', 'active'),
+    queryFn: () => api.get<MeetingState | null>(`${scope}/teams/${teamId}/meetings/active`),
+  })
+}
+
+export function useMeeting(teamId: string, meetingId: string | undefined) {
+  const { scope } = useAuth()
+  return useQuery({
+    queryKey: key(teamId, 'meeting', meetingId),
+    queryFn: () => api.get<MeetingState>(`${scope}/meetings/${meetingId}`),
+    enabled: !!meetingId,
+  })
+}
+
+/** Every meeting action answers with the new state: put it in the cache at once, then refresh the rest. */
+function useMeetingAction<V>(teamId: string, run: (scope: string, v: V) => Promise<MeetingState>) {
+  const { scope } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: V) => run(scope, v),
+    onSuccess: (state) => {
+      qc.setQueryData(key(teamId, 'meeting', state.id), state)
+      qc.invalidateQueries({ queryKey: key(teamId, 'meeting') })
+    },
+  })
+}
+
+export const useStartMeeting = (teamId: string) =>
+  useMeetingAction<void>(teamId, (scope) => api.post<MeetingState>(`${scope}/teams/${teamId}/meetings`))
+export const useJoinMeeting = (teamId: string) =>
+  useMeetingAction<string>(teamId, (scope, id) => api.post<MeetingState>(`${scope}/meetings/${id}/join`))
+export const useAdvanceMeeting = (teamId: string) =>
+  useMeetingAction<string>(teamId, (scope, id) => api.post<MeetingState>(`${scope}/meetings/${id}/advance`))
+export const useEndMeeting = (teamId: string) =>
+  useMeetingAction<string>(teamId, (scope, id) => api.post<MeetingState>(`${scope}/meetings/${id}/end`))
+export const useRateMeeting = (teamId: string) =>
+  useMeetingAction<{ meetingId: string; rating: number }>(teamId, (scope, v) =>
+    api.put<MeetingState>(`${scope}/meetings/${v.meetingId}/rating`, { rating: v.rating }))
