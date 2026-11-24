@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/auth/AuthProvider'
 import { api } from '@/lib/api'
-import type { CompletionRate, Issue, MeetingState, Rock, Scorecard, Team, Todo, User } from '@/lib/types'
+import type { CompletionRate, Issue, MeetingState, MeetingSummary, Rock, Scorecard, Team, Todo, User } from '@/lib/types'
 
 export const key = (teamId: string, part: string, ...rest: unknown[]) => ['team', teamId, part, ...rest]
 
@@ -128,6 +128,15 @@ export function useActiveMeeting(teamId: string) {
   return useQuery({
     queryKey: key(teamId, 'meeting', 'active'),
     queryFn: () => api.get<MeetingState | null>(`${scope}/teams/${teamId}/meetings/active`),
+  })
+}
+
+export function useMeetingSummary(teamId: string, meetingId: string, enabled: boolean) {
+  const { scope } = useAuth()
+  return useQuery({
+    queryKey: key(teamId, 'meeting', meetingId, 'summary'),
+    queryFn: () => api.get<MeetingSummary>(`${scope}/meetings/${meetingId}/summary`),
+    enabled,
   })
 }
 

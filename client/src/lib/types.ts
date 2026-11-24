@@ -39,6 +39,18 @@ export interface CompletionRate {
   week_start: string; due: number; done: number; rate: number | null; meets_target: boolean | null; target: number
 }
 
+export interface MeetingSummary {
+  meeting_id: string; team_id: string; facilitator_id: string; started_at: string; ended_at: string
+  attendees: { id: string; name: string }[]
+  rating: { average: number | null; count: number; by_user: Record<string, number> }
+  week_start: string // the last closed week as of the meeting
+  measurables: (Pick<Measurable, 'goal_type' | 'goal_value' | 'goal_min' | 'goal_max' | 'name' | 'unit'> & {
+    measurable_id: string; score: string | null; status: MeasurableStatus
+  })[]
+  issues_solved: { id: string; title: string; owner_id: string; solved_at: string | null; resolution_note: string | null }[]
+  todos_created: { id: string; title: string; owner_id: string; due_date: string; done_at: string | null; source_issue_id: string | null }[]
+}
+
 export type SectionName = 'scorecard' | 'ids' | 'conclude'
 export interface MeetingSection { section: SectionName; started_at: string; ended_at: string | null }
 export interface MeetingState {

@@ -28,6 +28,9 @@ class TodoService(BaseService[Todo]):
     def list_for_team(self, team_id: str) -> list[Todo]:
         return self.repository.list_for_team(team_id)
 
+    def created_in_meeting(self, meeting_id: str) -> list[Todo]:
+        return self.repository.list_created_in_meeting(meeting_id)
+
     def is_overdue(self, todo: Todo) -> bool:
         return todo.done_at is None and todo.due_date < self.clock.today()
 

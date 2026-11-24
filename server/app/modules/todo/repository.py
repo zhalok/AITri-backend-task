@@ -11,5 +11,9 @@ class TodoRepository(BaseRepository[Todo]):
         stmt = select(Todo).where(Todo.team_id == team_id).order_by(Todo.due_date, Todo.id)
         return list(self.session.scalars(stmt))
 
+    def list_created_in_meeting(self, meeting_id: str) -> list[Todo]:
+        stmt = select(Todo).where(Todo.created_in_meeting_id == meeting_id).order_by(Todo.created_at, Todo.id)
+        return list(self.session.scalars(stmt))
+
     def save(self) -> None:
         self.session.flush()

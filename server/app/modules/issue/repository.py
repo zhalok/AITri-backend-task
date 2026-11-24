@@ -27,6 +27,10 @@ class IssueRepository(BaseRepository[Issue]):
         )
         return list(self.session.scalars(stmt))
 
+    def list_solved_in_meeting(self, meeting_id: str) -> list[Issue]:
+        stmt = select(Issue).where(Issue.solved_in_meeting_id == meeting_id).order_by(Issue.solved_at, Issue.id)
+        return list(self.session.scalars(stmt))
+
     def find_unsolved_by_source(self, measurable_id: str, week_start: date) -> Issue | None:
         stmt = select(Issue).where(
             Issue.source_measurable_id == measurable_id,

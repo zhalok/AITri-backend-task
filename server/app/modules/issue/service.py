@@ -22,6 +22,9 @@ class IssueService(BaseService[Issue]):
     def list_solved(self, team_id: str) -> list[Issue]:
         return self.repository.list_solved(team_id)
 
+    def solved_in_meeting(self, meeting_id: str) -> list[Issue]:
+        return self.repository.list_solved_in_meeting(meeting_id)
+
     def create(self, team_id: str, owner_id: str, title: str, priority: int | None) -> Issue:
         issue = Issue(
             id=new_id(), team_id=team_id, owner_id=owner_id, title=title, priority=priority,
