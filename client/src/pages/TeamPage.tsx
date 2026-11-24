@@ -6,7 +6,6 @@ import ScorecardSection from '@/components/ScorecardSection'
 import TodosSection from '@/components/TodosSection'
 import { StartMeetingButton } from '@/components/meeting/StartMeetingButton'
 import { useScorecard, useTeams } from '@/hooks/queries'
-import { useTeamSocket } from '@/hooks/useTeamSocket'
 import { ApiError } from '@/lib/api'
 
 export default function TeamPage() {
@@ -14,7 +13,6 @@ export default function TeamPage() {
   const teams = useTeams()
   const scorecard = useScorecard(teamId)
   const team = teams.data?.find((t) => t.id === teamId)
-  useTeamSocket(teamId) // live updates: a change made in a meeting shows up here without a refresh
 
   // A team you cannot see (even by a guessed id) is refused by the server; say so plainly.
   if (scorecard.error instanceof ApiError && [403, 404].includes(scorecard.error.status)) {
