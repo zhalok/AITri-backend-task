@@ -1,46 +1,19 @@
 #!/usr/bin/env bash
-# The one command for every test: server (rules, access control, visibility, concurrency, repositories), then the
-# browser test (two browsers in one meeting).
+# The one command for every test. It starts the infrastructure, then runs the layer scripts in order:
+#   1. infrastructure   docker compose up -d --build --wait   (Postgres, Redis, API, web; clock pinned by APP_NOW)
+#   2. test-unit.sh     rules, services, controllers          (no infrastructure needed)
+#   3. test-api.sh      access control, visibility, concurrency, repositories
+#   4. test-e2e.sh      two browsers in one meeting (Playwright)
+# Stops at the first failing layer. The stack is left running afterwards; stop it with: docker compose down
 #
-#   ./scripts/test.sh                 # everything
-#   ./scripts/test.sh server          # server tests only (needs just Postgres)
-#   ./scripts/test.sh e2e             # the Playwright test only (needs the whole stack)
-#   ./scripts/test.sh server -k audit # extra arguments go to pytest
-#   HEADED=1 ./scripts/test.sh e2e    # watch the two browsers (headless by default, so it runs unattended)
-#
-# Postgres is started for you (docker compose). The server tests create and drop their own databases
-# (l10_test, l10_concurrency), so the dev database is never touched. The e2e test drives the real stack
-# (nginx -> API -> Postgres -> Redis), which compose starts here with the clock pinned by APP_NOW.
-# Failure traces and the HTML report land in client/test-results and client/playwright-report.
+#   ./scripts/test.sh
+#   HEADED=1 ./scripts/test.sh     # watch the browser test
+# Run one layer alone with its own script, e.g. ./scripts/test-api.sh -k audit (the infrastructure must be up).
 set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+docker compose up -d --build --wait
 
-WHICH="${1:-all}"
-[ $# -gt 0 ] && shift || true
-case "$WHICH" in all|server|e2e) ;; *) echo "usage: $0 [all|server|e2e] [pytest args]" >&2; exit 2;; esac
-
-run_server() {
-  docker compose up -d --wait db
-  cd "$ROOT/server"
-  if [ ! -x .venv/bin/python ]; then
-    python3 -m venv .venv
-    .venv/bin/pip install --quiet -r requirements.txt
-  fi
-  .venv/bin/python -m pytest "$@"
-}
-
-run_e2e() {
-  docker compose up -d --build --wait
-  cd "$ROOT/client"
-  [ -d node_modules ] || npm ci
-  npx playwright install chromium >/dev/null
-  npx playwright test
-}
-
-case "$WHICH" in
-  server) (run_server "$@") ;;
-  e2e)    (run_e2e) ;;
-  all)    (run_server "$@"); (run_e2e) ;;
-esac
+./scripts/test-unit.sh
+./scripts/test-api.sh
+./scripts/test-e2e.sh
