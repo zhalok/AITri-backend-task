@@ -3,6 +3,31 @@
 A weekly team-meeting app: a Scorecard of Measurables, Rocks, Issues and To-Dos, and a live meeting that
 several people attend at once. FastAPI + Postgres + Redis behind nginx, with a React front end.
 
+## Preface
+
+This README is the guide to running, testing and understanding the app. It starts with how to bring the whole stack
+up with one command and how to run every test with another. It then explains the main design decisions: how the API
+is organised, how every request is secured, how meetings stay in sync across browsers, and how changes are audited.
+The last two sections are the reference material that came with the assessment: the seed data and the format of the
+rules report.
+
+## Contents
+
+1. [Start the infrastructure](#start-the-infrastructure)
+2. [Run the tests](#run-the-tests)
+   - [3 layers of testing](#3-layers-of-testing)
+     - [Unit testing](#unit-testing)
+     - [API testing](#api-testing)
+     - [E2E testing](#e2e-testing)
+   - [Run all three at once](#run-all-three-at-once)
+   - [Fixture and clock strategy](#fixture-and-clock-strategy)
+3. [API design](#api-design)
+4. [How requests are secured](#how-requests-are-secured)
+5. [Real-time sync](#real-time-sync)
+6. [Audit trail](#audit-trail)
+7. [About the seed data](#about-the-seed-data)
+8. [Rules report format](#rules-report-format)
+
 ## Start the infrastructure
 
 You need Docker (with Compose). From the repository root:
@@ -33,8 +58,48 @@ docker compose down -v     # stop and delete the database volume: the next start
 
 ## Run the tests
 
-One command runs everything. It starts the infrastructure above, then the three layers in order, and stops at
-the first failure:
+### 3 layers of testing
+
+The tests are in three layers, each with its own script. The unit script needs nothing. The API and end-to-end
+scripts assume the infrastructure is already up (`./scripts/test.sh` starts it, or run
+`docker compose up -d --build --wait` yourself) and print how to start it if it is not. Extra arguments go to the
+test runner, so you can run a single test.
+
+#### Unit testing
+
+Script: `./scripts/test-unit.sh`. No database and no network. These check the business rules directly, each with its boundary cases: Measurable status
+(`tests/unit/test_measurable_status.py`), Rock status and progress, the To-Do completion rate and its rounding, the
+role-by-action access matrix, and the clock. The services and controllers are tested next to them with their
+collaborators faked. Runs in seconds. Example: `./scripts/test-unit.sh -k rock`.
+
+#### API testing
+
+Script: `./scripts/test-api.sh`. Real HTTP requests into the real FastAPI app, with a real signed-in user. Needs
+Postgres. Together they prove:
+
+- *Access control:* a Team Member reading another team's data is refused, an Observer's write is refused (`tests/api`).
+- *Data visibility and team isolation:* the queries that decide who sees what, run against the seeded database (`tests/api_db`).
+- *Concurrency:* simultaneous Make it an Issue requests for the same Measurable and week return one Issue; the
+  extra requests get the existing one back (`tests/api_concurrency`).
+- *The SQL itself, on the seed:* queries, constraints, the append-only audit trail, and the meeting summaries for
+  the two seeded meetings (`tests/repository`).
+
+The tests create and drop their own databases (`l10_test`, `l10_concurrency`) on the same Postgres, so your dev
+data is never touched. Example: `./scripts/test-api.sh tests/api_concurrency -v`.
+
+#### E2E testing
+
+Script: `./scripts/test-e2e.sh`. One Playwright test, two browsers, the whole stack through nginx. Blake signs in and starts a meeting. Casey signs in
+afterwards, sees **Join meeting** (not Start), and joins. Blake advances the agenda; Casey's page follows on its own,
+with no reload. It ends the meeting when it finishes, so it can be run again on the same stack. Playwright saves a
+trace of every run in `client/test-results/`, and the HTML report in `client/playwright-report/`; open a trace with
+`npx playwright show-trace <path>/trace.zip`. A trace of a failing run (Redis stopped, so the second browser cannot
+follow) is kept in `client/e2e/artifacts/failure-trace-no-redis.zip`.
+
+### Run all three at once
+
+One command starts the infrastructure (see above), then runs the unit, API and end-to-end tests in that order, and
+stops at the first failure:
 
 ```bash
 ./scripts/test.sh
@@ -56,39 +121,6 @@ cursor that glides to each button with a ripple on every click, and pauses after
 | `SCREEN_WIDTH`, `SCREEN_HEIGHT` | `1440`, `900` | your display size, used to split the screen in half |
 
 For example: `HEADED=1 STEP_DELAY_MS=4000 SCREEN_WIDTH=1728 ./scripts/test.sh`.
-
-### The three layers
-
-Each layer has its own script. The unit script needs nothing. The API and end-to-end scripts assume the
-infrastructure is already up (`./scripts/test.sh` starts it; or run `docker compose up -d --build --wait` yourself)
-and print how to start it if it is not. Extra arguments go to the
-test runner, so you can run a single layer or a single test.
-
-**1. Unit tests: `./scripts/test-unit.sh`.** No database and no network. These check the business rules
-directly, each with its boundary cases: Measurable status (`tests/unit/test_measurable_status.py`), Rock status and
-progress, the To-Do completion rate and its rounding, the role-by-action access matrix, and the clock. The services
-and controllers are tested next to them with their collaborators faked. Runs in seconds.
-Example: `./scripts/test-unit.sh -k rock`.
-
-**2. API tests: `./scripts/test-api.sh`.** Real HTTP requests into the real FastAPI app, with a real signed-in
-user. Needs Postgres. Together they prove:
-- *Access control:* a Team Member reading another team's data is refused, an Observer's write is refused (`tests/api`).
-- *Data visibility and team isolation:* the queries that decide who sees what, run against the seeded database (`tests/api_db`).
-- *Concurrency:* simultaneous Make it an Issue requests for the same Measurable and week return one Issue; the
-  extra requests get the existing one back (`tests/api_concurrency`).
-- *The SQL itself, on the seed:* queries, constraints, the append-only audit trail, and the meeting summaries for
-  the two seeded meetings (`tests/repository`).
-
-The tests create and drop their own databases (`l10_test`, `l10_concurrency`) on the same Postgres, so your dev
-data is never touched. Example: `./scripts/test-api.sh tests/api_concurrency -v`.
-
-**3. End-to-end test: `./scripts/test-e2e.sh`.** One Playwright test, two browsers, the whole stack through
-nginx. Blake signs in and starts a meeting. Casey signs in afterwards, sees **Join meeting** (not Start), and
-joins. Blake advances the agenda; Casey's page follows on its own, with no reload. It ends the meeting when it
-finishes, so it can be run again on the same stack. Playwright saves a trace of every run in
-`client/test-results/`, and the HTML report in `client/playwright-report/`; open a trace with
-`npx playwright show-trace <path>/trace.zip`. A trace of a failing run (Redis stopped, so the second browser
-cannot follow) is kept in `client/e2e/artifacts/failure-trace-no-redis.zip`.
 
 ### Fixture and clock strategy
 
