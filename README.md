@@ -20,6 +20,7 @@ rules report.
      - [API testing](#api-testing)
      - [E2E testing](#e2e-testing)
    - [Run all three at once](#run-all-three-at-once)
+   - [Continuous integration (run all tests in CI)](#continuous-integration-run-all-tests-in-ci)
    - [Fixture and clock strategy](#fixture-and-clock-strategy)
 3. [API design](#api-design)
 4. [How requests are secured](#how-requests-are-secured)
@@ -121,6 +122,14 @@ cursor that glides to each button with a ripple on every click, and pauses after
 | `SCREEN_WIDTH`, `SCREEN_HEIGHT` | `1440`, `900` | your display size, used to split the screen in half |
 
 For example: `HEADED=1 STEP_DELAY_MS=4000 SCREEN_WIDTH=1728 ./scripts/test.sh`.
+
+### Continuous integration (run all tests in CI)
+
+`.github/workflows/tests.yml` runs all the tests in CI, the unit, API and end-to-end layers, by calling
+`./scripts/test.sh` on every push and pull request (and on demand from the Actions
+tab), so nobody has to run anything locally to see the result. The browser test runs headless there. The Playwright
+report and traces are uploaded as the `playwright-report` artifact of each run, and the container logs are printed if
+a run fails.
 
 ### Fixture and clock strategy
 

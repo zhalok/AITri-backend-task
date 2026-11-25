@@ -1,0 +1,51 @@
+name: Tests
+
+# Runs the one documented test command, ./scripts/test.sh: it starts the stack with docker compose, then runs the
+# unit, API and end-to-end tests. The browser test runs headless here.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      # The browser needs system libraries on a bare Linux runner; the script itself only downloads Chromium.
+      - name: Install client dependencies and the Playwright browser
+        working-directory: client
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run all tests
+        run: ./scripts/test.sh
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      # Kept for every run, pass or fail: the Playwright trace and HTML report are the failure artifact.
+      - name: Upload Playwright report and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            client/playwright-report
+            client/test-results
+          if-no-files-found: ignore
+          retention-days: 14
