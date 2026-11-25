@@ -3,8 +3,7 @@ from datetime import date
 from decimal import Decimal
 
 from app.core.clock import Clock
-from app.core.concurrency import UNSET
-from app.core.errors import DomainValidationError, StaleDataError
+from app.core.errors import DomainValidationError
 from app.modules.measurable.models import Measurable
 from app.modules.measurable.rules import measurable_status
 from app.modules.score.models import Score
@@ -45,21 +44,9 @@ class ScoreService:
         current = self.clock.current_week_start()
         return {w: measurable_status(measurable, v, w, current) for w, v in scores.items()}
 
-    def set_score(self, measurable_id: str, week_start: date, value: Decimal, seen=UNSET) -> Score:
-        """Last save wins, unless the caller says which value it saw: then a changed cell is refused (409)."""
+    def set_score(self, measurable_id: str, week_start: date, value: Decimal) -> Score:
         if week_start.weekday() != 0:
             raise DomainValidationError("week_start must be a Monday")
         if week_start not in self.clock.last_n_weeks(13):
             raise DomainValidationError("week_start must be within the last 13 weeks, up to the current week")
-        if seen is UNSET:
-            return self.repository.upsert(measurable_id, week_start, value)
-        saved = self.repository.set_if_seen(measurable_id, week_start, value, seen)
-        if saved is None:
-            found = self.repository.list_for([measurable_id], [week_start])
-            current = found[0].value if found else None
-            now = "empty" if current is None else f"{current.normalize():f}"
-            raise StaleDataError(
-                f"This score was changed by someone else (it is now {now}). Your edit was not saved.",
-                current=None if current is None else str(current),
-            )
-        return saved
+        return self.repository.upsert(measurable_id, week_start, value)

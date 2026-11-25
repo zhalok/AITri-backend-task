@@ -124,21 +124,3 @@ def test_make_it_an_issue_is_201_when_created_and_200_when_it_already_existed(cl
 def test_make_it_an_issue_rejects_a_bad_date(client, uc, week):
     assert client.post(f"/api/measurables/m1/scores/{week}/issue").status_code == 422
     uc.make_it_an_issue.assert_not_called()
-
-
-def test_priority_with_seen_passes_it_on_and_without_it_does_not(client, uc, actor):
-    uc.set_priority.return_value = make_issue("i1", priority=4)
-    client.patch("/api/issues/i1/priority", json={"priority": 4})
-    uc.set_priority.assert_called_with(actor, "i1", 4)
-    client.patch("/api/issues/i1/priority", json={"priority": 4, "seen": None})
-    uc.set_priority.assert_called_with(actor, "i1", 4, seen=None)
-    client.patch("/api/issues/i1/priority", json={"priority": 4, "seen": 2})
-    uc.set_priority.assert_called_with(actor, "i1", 4, seen=2)
-
-
-def test_a_stale_priority_change_is_a_409_with_the_current_priority(client, uc):
-    from app.core.errors import StaleDataError
-
-    uc.set_priority.side_effect = StaleDataError("changed", current=5)
-    r = client.patch("/api/issues/i1/priority", json={"priority": 4, "seen": 2})
-    assert r.status_code == 409 and r.json()["current"] == 5 and r.json()["error"] == "stale_data"

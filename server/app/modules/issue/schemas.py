@@ -14,9 +14,6 @@ class IssueCreate(BaseModel):
 
 class IssuePriorityUpdate(BaseModel):
     priority: Priority | None
-    # The priority the editor was looking at (null = none). Omit it and the last save wins; send it and the
-    # change is refused with 409 if someone else changed the priority meanwhile.
-    seen: Priority | None = None
 
 
 class IssueSolve(BaseModel):

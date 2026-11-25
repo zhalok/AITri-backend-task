@@ -2,8 +2,7 @@ from datetime import date
 
 from app.core.base import BaseService, new_id
 from app.core.clock import Clock
-from app.core.concurrency import UNSET
-from app.core.errors import ConflictError, DomainValidationError, StaleDataError
+from app.core.errors import ConflictError, DomainValidationError
 from app.modules.issue.models import Issue
 from app.modules.measurable.rules import OFF_TRACK
 from app.modules.issue.repository import IssueRepository
@@ -56,18 +55,7 @@ class IssueService(BaseService[Issue]):
         assert issue is not None
         return issue, inserted
 
-    def set_priority(self, issue: Issue, priority: int | None, seen=UNSET) -> Issue:
-        """Last save wins, unless the caller says which priority it saw: then a changed one is refused (409)."""
-        if seen is not UNSET:
-            locked = self.repository.get_for_update(issue.id)  # lock, then compare
-            if locked is None or locked.priority != seen:
-                current = None if locked is None else locked.priority
-                label = "none" if current is None else f"P{current}"
-                raise StaleDataError(
-                    f"This Issue's priority was changed by someone else (it is now {label}). Your change was not saved.",
-                    current=current,
-                )
-            issue = locked
+    def set_priority(self, issue: Issue, priority: int | None) -> Issue:
         issue.priority = priority
         self.repository.save()
         return issue
