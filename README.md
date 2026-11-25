@@ -110,32 +110,59 @@ can never leak data across teams.
 
 **1. One router per resource.** Each resource (team, measurable, score, rock, milestone, issue, to-do, meeting)
 has its own module with its own router, use case, service and repository, and its routes live under that
-resource's path, for example `/teams/{team_id}/issues` and `/issues/{issue_id}/solve`. A change to Issues touches
-the Issue module and nothing else. Derived views that are not resources of their own (the meeting summary, the
-audit trail, the realtime socket) are modules too, so they never grow into the resource they read from.
+resource's path. For example:
+
+- `/teams/{team_id}/issues`
+- `/issues/{issue_id}/solve`
+
+A change to Issues touches the Issue module and nothing else. Derived views that are not resources of their own (the
+meeting summary, the audit trail, the realtime socket) are modules too, so they never grow into the resource they
+read from.
 
 **2. One endpoint per action.** An endpoint does exactly one thing and maps to exactly one named action in
-`core/permissions.py`: `EDIT_SCORE`, `SET_ISSUE_PRIORITY`, `SOLVE_ISSUE`, `ADVANCE_MEETING`, and so on. There are
-no "update anything" endpoints that decide what to allow from the body, so an endpoint's permission never depends
-on what the caller sends.
+`core/permissions.py`. For example:
+
+- `EDIT_SCORE`
+- `SET_ISSUE_PRIORITY`
+- `SOLVE_ISSUE`
+- `ADVANCE_MEETING`
+
+There are no "update anything" endpoints that decide what to allow from the body, so an endpoint's permission never
+depends on what the caller sends.
 
 **3. A different visibility scope is a different action.** Every action defaults to the narrowest scope: it works
-only in a team the caller belongs to. Reaching any team is not a flag on that endpoint. It is a separate endpoint
-under `/api/admin` with its own action (`SOLVE_ISSUE` and `ANY_TEAM_SOLVE_ISSUE`), held only by Admins. The same
-split applies to lists (`LIST_MY_TEAMS` and `LIST_ALL_TEAMS`). A test requires every team-scoped route to have an
-admin twin and checks that each one calls its own method, so a route cannot quietly gain wider reach.
+only in a team the caller belongs to. Reaching other teams is not a flag on that endpoint. It is a separate action
+with its own endpoint, held only by Admins, and the endpoint is the one that decides what is visible:
+
+| Action | Endpoint | Visibility scope |
+|---|---|---|
+| `LIST_ISSUES` | `GET /api/teams/{team_id}/issues` | Issues of that team, and only if the caller is a member of it |
+| `ANY_TEAM_LIST_ISSUES` | `GET /api/admin/teams/{team_id}/issues` | Issues of any one team, no membership needed (Admin only) |
+| `SOLVE_ISSUE` | `POST /api/issues/{issue_id}/solve` | Only an Issue of a team the caller belongs to |
+| `ANY_TEAM_SOLVE_ISSUE` | `POST /api/admin/issues/{issue_id}/solve` | An Issue of any team (Admin only) |
+| `LIST_MY_TEAMS` | `GET /api/teams` | Only the caller's own teams |
+| `LIST_ALL_TEAMS` | `GET /api/teams/all` | Every team in the company (Admin only) |
+| `LIST_USERS` | `GET /api/users` | People who share a team with the caller |
+| `LIST_ALL_USERS` | `GET /api/users/all` | Everyone in the company (Admin only) |
+
+Every team-scoped action has an `ANY_TEAM_` twin under `/api/admin`. A test requires every team-scoped route to
+have an admin twin and checks that each one calls its own method, so a route cannot quietly gain wider reach.
 
 **4. Every endpoint checks the caller's role against its action.** The matrix maps each role to the set of
 actions it may perform, and anything not listed is denied (Observers read, Team Members read and write, Admins
 do everything). The first line of every use case is `rbac.require(actor, Action.X)`. For the narrow actions a
-second check, team membership, follows. Rules that depend on the particular meeting, such as only the
-facilitator advances or ends it and only an attendee rates it, are checked in the meeting service, because the
-role alone cannot decide them.
+second check, team membership, follows. Rules that depend on the particular meeting are checked in the meeting
+service, because the role alone cannot decide them. For example:
 
-**Inputs and responses.** Request bodies and parameters are validated at the API (for example, a score's
-`week_start` must be a Monday inside the 13-week window), and errors use consistent status codes: 403 for a
-refused role or team, 404 for a missing resource, 409 for a conflict, and 201 or 200 for Make it an Issue
-depending on whether it created the Issue or returned the existing one.
+- only the facilitator advances or ends the meeting
+- only an attendee rates it
+
+**Inputs and responses.** Request bodies and parameters are validated at the API, and errors use consistent status
+codes. For example:
+
+- a score's `week_start` must be a Monday inside the 13-week window, otherwise 422
+- 403 for a refused role or team, 404 for a missing resource, 409 for a conflict
+- Make it an Issue returns 201 when it created the Issue and 200 when it returned the existing one
 
 **How it is proven.** The role-by-action matrix is unit-tested, access control is tested through real HTTP
 requests as each role, data visibility is tested against the seeded database, and the route-wiring test above
@@ -165,50 +192,48 @@ the request with an error and nothing is touched.
    pure function, `role_can(role, action)`, which knows nothing about users or teams, so the matrix is unit-tested
    on its own.
 
+```mermaid
+flowchart LR
+    REQ["Request"] --> JWT["JWT verification<br/>and user lookup"]
+    JWT -->|"valid"| RBAC["RBAC matrix check<br/>(role allowed this action?)"]
+    RBAC -->|"allowed"| SCOPE["Team membership check"]
+    SCOPE -->|"member"| ACT["Endpoint action runs"]
+    JWT -->|"invalid or expired"| E401["401"]
+    RBAC -->|"role lacks the action"| E403["403"]
+    SCOPE -->|"not in the team"| E403B["403"]
+```
+
 Sign-in is by email only, with no password, because the seed has none. The token is signed with `JWT_SECRET`, whose
 default in `docker-compose.yml` is a development value and must be replaced in production.
 
 ## Real-time sync
 
-Meeting attendees see each other's changes live. There are two separate paths between the browser and the
-database: one carries the data, the other only carries "something changed".
+Meeting attendees see each other's changes live. There are two separate paths between the browser and
+the database, around the one Postgres: the HTTP path carries the data, the WebSocket path only carries "something changed".
 
 ```mermaid
-flowchart LR
+flowchart RL
+    P[("Postgres")]
+    H["HTTP endpoint (REST API)"]
+    D["CDC listener"]
+    R["Redis pub/sub"]
+    W["WebSocket endpoint"]
     C["Browser"]
 
-    subgraph DATA ["Path 1: the data (HTTP)"]
-        direction LR
-        H["HTTP endpoint (REST API)"]
-        P1[("Postgres")]
-        H <--> P1
-    end
-
-    subgraph LIVE ["Path 2: the live signal (WebSocket)"]
-        direction LR
-        W["WebSocket endpoint"]
-        R["Redis pub/sub"]
-        D["CDC listener"]
-        P2[("Postgres")]
-        P2 -->|"NOTIFY on commit"| D
-        D -->|"PUBLISH team:id"| R
-        R -->|"message"| W
-    end
-
-    C <-->|"read and write"| H
-    W -->|"change event"| C
-    C -->|"login token, once"| W
+    P <--> H
+    H <-->|"read and write"| C
+    P --> D
+    D --> R
+    R --> W
+    W -->|"'something changed'"| C
 ```
-
-Arrows show which way each message travels. Path 1 is a request and a response. In path 2 the signal only travels
-one way, from the database towards the browser.
 
 In words:
 
 1. **Reading and writing always goes over HTTP.** `browser <> HTTP endpoint <> Postgres`. Every read and every write is
    a normal REST call with the usual login, role and team checks.
 2. **The WebSocket never carries data**, only the news that something changed:
-   `Postgres > CDC listener > Redis pub/sub > WebSocket endpoint > browser`.
+   `browser <> WebSocket endpoint <> Redis pub/sub <> CDC listener <> Postgres`.
 3. **When someone writes** (say the facilitator advances the agenda): the write goes in over HTTP and Postgres commits
    it. A trigger in Postgres sends a notification (that is the change capture, the "CDC"). The CDC listener hears it
    and publishes it to Redis on the channel `team:{id}`. Redis hands it to every WebSocket endpoint subscribed to that
@@ -241,19 +266,15 @@ In words:
 
 ## Audit trail
 
-Every change to scores, issues, to-dos and meetings is recorded, so a lost update or a race can be investigated
-after the fact. It is a second trigger on the same tables, deliberately separate from the real-time path:
+Every change to scores, issues, to-dos and meetings is recorded in the `audit_events` table by a database trigger.
+That is what makes concurrent updates auditable: if two people overwrite each other, the table shows who changed
+what, in which order, and what the row held before and after.
 
 ```mermaid
 flowchart LR
-    REQ["Request (JWT verified)"] -->|"set_config('app.actor_id', user id), transaction-local"| TX
-    subgraph TX ["One database transaction"]
-        W["INSERT / UPDATE / DELETE on scores, issues, todos or meetings"]
-        W -->|"after-row trigger audit_change()"| E[("audit_events: operation, old row, new row, team, actor, transaction id")]
-    end
-    TX -->|COMMIT| OK["Change and its audit row both exist"]
-    TX -.->|ROLLBACK| NONE["Neither exists"]
-    ADMIN["Admin: GET /api/audit-events"] --> E
+    EP["API endpoints<br/>(any write)"] --> A["Any database change<br/>(insert, update or delete)"]
+    A --> T["Trigger"]
+    T --> E[("audit_events table")]
 ```
 
 - **Written by the database, in the same transaction.** If the write commits its audit row commits with it, and if it
