@@ -15,7 +15,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import {
   useActiveMeeting, useAdvanceMeeting, useEndMeeting, useMeeting, useMembers, useTeams,
 } from '@/hooks/queries'
-import { useMeetingSocket, useTeamSocket } from '@/hooks/useTeamSocket'
+import { useMeetingSocket } from '@/hooks/useTeamSocket'
 import { ApiError } from '@/lib/api'
 import { SECTION_LABEL } from '@/lib/format'
 
@@ -26,7 +26,6 @@ export default function MeetingPage() {
 
 /** /teams/:id/meeting with no meeting id: go to the active meeting, or offer to start one. */
 function FindMeeting({ teamId }: { teamId: string }) {
-  useTeamSocket(teamId) // not in a room yet, so only the data feed: finding a meeting is not attending it
   const active = useActiveMeeting(teamId)
   if (active.isLoading) return <LoadingRows />
   if (active.data) return <Navigate to={`/teams/${teamId}/meeting/${active.data.id}`} replace />

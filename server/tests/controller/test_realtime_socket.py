@@ -48,7 +48,7 @@ def client():
 EVENTS = []
 
 
-def connect(client, monkeypatch, *, path="sync", authorize=lambda token, team: make_user("u2"), redis=None):
+def connect(client, monkeypatch, *, path="meeting", authorize=lambda token, team: make_user("u2"), redis=None):
     EVENTS.clear()
     presence._open.clear()
     monkeypatch.setattr(controller, "join_active_meeting", lambda user, team: EVENTS.append(("join", user.id, team)))
@@ -121,12 +121,6 @@ def test_any_kind_of_disconnect_leaves(client, monkeypatch):
     ws = open_ws(client, monkeypatch, "meeting")
     ws.close(code=1006)  # an abnormal drop, like a lost connection
     assert ("leave", "u2", "t1") in settle()
-
-
-def test_the_sync_endpoint_never_changes_attendance(client, monkeypatch):
-    ws = open_ws(client, monkeypatch, "sync")  # the Team page's endpoint
-    ws.close()
-    assert settle() == []
 
 
 def test_a_second_open_meeting_tab_keeps_the_user_in_until_the_last_one_closes(client, monkeypatch):

@@ -1,8 +1,7 @@
 """Attendance follows the connection: a meeting page's socket joins the meeting, its last close leaves it.
 
-Only sockets on the meeting endpoint (`/ws/teams/{id}/meeting`, the Meeting page) count. The Team page
-uses a different endpoint (`/ws/teams/{id}/sync`) that never changes who is in the meeting. A user may have the meeting open in several tabs, so
-they leave only when the last of their presence sockets closes.
+Only sockets on the meeting endpoint (`/ws/teams/{id}/meeting`, the Meeting page) exist. A user may have
+the meeting open in several tabs, so they leave only when the last of their presence sockets closes.
 
 A refresh, a sleeping laptop or a dropped connection are disconnects like any other: the user leaves, and
 their next connection joins again. Ratings leave with them. The facilitator is never removed (nobody could

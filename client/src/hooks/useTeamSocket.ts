@@ -11,10 +11,9 @@ const NOT_ALLOWED = [4401, 4403] // not signed in / not your team: retrying cann
 /**
  * One live socket for one team. On every (re)connect the server sends "ready" and we refetch the team's whole
  * cache, which is what makes refreshes, late joins and dropped connections safe.
- * `endpoint` picks the responsibility: "sync" is only the data feed; "meeting" is the data feed plus being
- * in the team's meeting (connecting joins it, closing it leaves it).
+ * It is the data feed plus being in the team's meeting (connecting joins it, closing it leaves it).
  */
-function useLiveSocket(teamId: string, endpoint: 'sync' | 'meeting') {
+function useLiveSocket(teamId: string) {
   const qc = useQueryClient()
   const socketRef = useRef<WebSocket | null>(null)
   const stoppedRef = useRef(false)
@@ -30,7 +29,7 @@ function useLiveSocket(teamId: string, endpoint: 'sync' | 'meeting') {
 
     const connect = () => {
       const scheme = location.protocol === 'https:' ? 'wss' : 'ws'
-      socket = new WebSocket(`${scheme}://${location.host}/api/ws/teams/${teamId}/${endpoint}`)
+      socket = new WebSocket(`${scheme}://${location.host}/api/ws/teams/${teamId}/meeting`)
       socketRef.current = socket
       socket.onopen = () => socket?.send(JSON.stringify({ type: 'auth', token }))
       socket.onmessage = (e) => {
@@ -54,7 +53,7 @@ function useLiveSocket(teamId: string, endpoint: 'sync' | 'meeting') {
       clearTimeout(retry)
       socket?.close()
     }
-  }, [teamId, endpoint, qc])
+  }, [teamId, qc])
 
   /** Close the socket and stop reconnecting. */
   const close = useCallback(() => {
@@ -65,14 +64,9 @@ function useLiveSocket(teamId: string, endpoint: 'sync' | 'meeting') {
   return { close }
 }
 
-/** The Team page's live feed. It never changes who is in a meeting. */
-export function useTeamSocket(teamId: string) {
-  useLiveSocket(teamId, 'sync')
-}
-
 /** The Meeting page's socket: the live feed, and this socket IS you being in the team's meeting. */
 export function useMeetingSocket(teamId: string) {
-  const { close } = useLiveSocket(teamId, 'meeting')
+  const { close } = useLiveSocket(teamId)
   /** Leave the meeting: the user's last meeting socket closing takes them off the attendee list. */
   return { leave: close }
 }

@@ -1,10 +1,9 @@
-"""WebSockets: they only ever tell the client what changed. Two endpoints, two responsibilities:
+"""WebSocket: it only ever tells the client what changed. One endpoint, used by the Meeting page:
 
-    /ws/teams/{team_id}/sync     the live data feed (Team page). Never touches meeting attendance.
-    /ws/teams/{team_id}/meeting  the same feed, plus presence (Meeting page): connecting joins the team's
-                                 running meeting, and a user's last such socket closing leaves it.
+    /ws/teams/{team_id}/meeting  the live data feed plus presence: connecting joins the team's running
+                                 meeting, and a user's last such socket closing leaves it.
 
-Protocol (JSON text frames, identical on both):
+Protocol (JSON text frames):
     client -> {"type": "auth", "token": "<jwt>"}   must be the first frame, within AUTH_TIMEOUT seconds
     server -> {"type": "ready"}                    subscribed; the client should refetch everything now
     server -> {"type": "change", "kind": "scorecard|issues|todos|meeting"}
@@ -49,17 +48,8 @@ def authorize(token: str, team_id: str) -> User:
         return access.authorize(token, team_id)
 
 
-@router.websocket("/ws/teams/{team_id}/sync")
-async def team_sync(ws: WebSocket, team_id: str) -> None:
-    await serve(ws, team_id, presence_on=False)
-
-
 @router.websocket("/ws/teams/{team_id}/meeting")
 async def team_meeting(ws: WebSocket, team_id: str) -> None:
-    await serve(ws, team_id, presence_on=True)
-
-
-async def serve(ws: WebSocket, team_id: str, *, presence_on: bool) -> None:
     await ws.accept()
     try:
         first = json.loads(await asyncio.wait_for(ws.receive_text(), AUTH_TIMEOUT))
@@ -75,9 +65,8 @@ async def serve(ws: WebSocket, team_id: str, *, presence_on: bool) -> None:
 
     redis = new_redis()
     pubsub = redis.pubsub()
-    if presence_on:
-        presence.opened(user, team_id)
-        await asyncio.to_thread(join_active_meeting, user, team_id)
+    presence.opened(user, team_id)
+    await asyncio.to_thread(join_active_meeting, user, team_id)
     try:
         await pubsub.subscribe(team_channel(team_id))  # subscribe BEFORE "ready" so nothing slips between
         await ws.send_json({"type": "ready"})
@@ -104,5 +93,5 @@ async def serve(ws: WebSocket, team_id: str, *, presence_on: bool) -> None:
     finally:
         await pubsub.aclose()
         await redis.aclose()
-        if presence_on and presence.closed(user, team_id):
+        if presence.closed(user, team_id):
             await asyncio.to_thread(leave_active_meeting, user, team_id)

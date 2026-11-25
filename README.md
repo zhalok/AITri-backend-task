@@ -19,9 +19,9 @@ rules report.
      - [Unit testing](#unit-testing)
      - [API testing](#api-testing)
      - [E2E testing](#e2e-testing)
+   - [Fixture and clock strategy](#fixture-and-clock-strategy)
    - [Run all three at once](#run-all-three-at-once)
    - [Continuous integration (run all tests in CI)](#continuous-integration-run-all-tests-in-ci)
-   - [Fixture and clock strategy](#fixture-and-clock-strategy)
 3. [API design](#api-design)
 4. [How requests are secured](#how-requests-are-secured)
 5. [Real-time sync](#real-time-sync)
@@ -97,6 +97,19 @@ trace of every run in `client/test-results/`, and the HTML report in `client/pla
 `npx playwright show-trace <path>/trace.zip`. A trace of a failing run (Redis stopped, so the second browser cannot
 follow) is kept in `client/e2e/artifacts/failure-trace-no-redis.zip`.
 
+### Fixture and clock strategy
+
+- **Clock.** Business time never comes from the system clock. It comes from `APP_NOW`, pinned to the seed's "now"
+  (2026-11-11T15:00:00Z, company time America/Chicago) by the test setup (`server/tests/conftest.py`) and, for the
+  end-to-end test, by `docker-compose.yml`. The current week, the 13-week window and overdue To-Dos are therefore
+  the same on every run, on any day. Unit tests build a clock at any instant they need to hit a boundary. Only token
+  expiry and live meeting timestamps use the real clock, on purpose.
+- **Fixture.** Tests start from the real `seed.json`, loaded into a Postgres built from the real migrations, in
+  databases of their own (`l10_test`, `l10_concurrency`), never the dev one. The shared API tests load the seed once and
+  roll back each test's writes. The concurrency tests need real commits, so they get a throwaway database. The
+  end-to-end test runs on the freshly seeded stack and ends the meeting it starts (and one left by an aborted run), so
+  it can be run again.
+
 ### Run all three at once
 
 One command starts the infrastructure (see above), then runs the unit, API and end-to-end tests in that order, and
@@ -130,19 +143,6 @@ For example: `HEADED=1 STEP_DELAY_MS=4000 SCREEN_WIDTH=1728 ./scripts/test.sh`.
 tab), so nobody has to run anything locally to see the result. The browser test runs headless there. The Playwright
 report and traces are uploaded as the `playwright-report` artifact of each run, and the container logs are printed if
 a run fails.
-
-### Fixture and clock strategy
-
-- **Clock.** Business time never comes from the system clock. It comes from `APP_NOW`, pinned to the seed's "now"
-  (2026-11-11T15:00:00Z, company time America/Chicago) by the test setup (`server/tests/conftest.py`) and, for the
-  end-to-end test, by `docker-compose.yml`. The current week, the 13-week window and overdue To-Dos are therefore
-  the same on every run, on any day. Unit tests build a clock at any instant they need to hit a boundary. Only token
-  expiry and live meeting timestamps use the real clock, on purpose.
-- **Fixture.** Tests start from the real `seed.json`, loaded into a Postgres built from the real migrations, in
-  databases of their own (`l10_test`, `l10_concurrency`), never the dev one. The shared API tests load the seed once and
-  roll back each test's writes. The concurrency tests need real commits, so they get a throwaway database. The
-  end-to-end test runs on the freshly seeded stack and ends the meeting it starts (and one left by an aborted run), so
-  it can be run again.
 
 ## API design
 
@@ -299,9 +299,8 @@ In words:
   navigation.
 - **The WebSocket is the attendance.** A user is in a meeting while a socket on `/ws/teams/{id}/meeting` is open;
   their last socket closing leaves it. Only the Meeting page opens this socket. The Team page opens none, so a
-  team with nobody in a meeting produces no live traffic, at the price that an open Team page refreshes on focus and
-  navigation, not on its own. A second endpoint, `/ws/teams/{id}/sync`, carries the same feed without presence and is
-  used only while looking for a running meeting.
+  team with nobody in a meeting produces no live traffic, at the price that an open Team page, or the "find a meeting"
+  page, refreshes on focus and navigation, not on its own.
 - **Limit.** The open-socket counts behind presence live in the API process, so more than one API worker would
   need them moved to Redis.
 
