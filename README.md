@@ -90,6 +90,71 @@ finishes, so it can be run again on the same stack. Playwright saves a trace of 
 `npx playwright show-trace <path>/trace.zip`. A trace of a failing run (Redis stopped, so the second browser
 cannot follow) is kept in `client/e2e/artifacts/failure-trace-no-redis.zip`.
 
+## API design
+
+The API is organised so that the answer to "who can do this?" can be read off one list, and so that the default
+can never leak data across teams.
+
+**1. One router per resource.** Each resource (team, measurable, score, rock, milestone, issue, to-do, meeting)
+has its own module with its own router, use case, service and repository, and its routes live under that
+resource's path, for example `/teams/{team_id}/issues` and `/issues/{issue_id}/solve`. A change to Issues touches
+the Issue module and nothing else. Derived views that are not resources of their own (the meeting summary, the
+audit trail, the realtime socket) are modules too, so they never grow into the resource they read from.
+
+**2. One endpoint per action.** An endpoint does exactly one thing and maps to exactly one named action in
+`core/permissions.py`: `EDIT_SCORE`, `SET_ISSUE_PRIORITY`, `SOLVE_ISSUE`, `ADVANCE_MEETING`, and so on. There are
+no "update anything" endpoints that decide what to allow from the body, so an endpoint's permission never depends
+on what the caller sends.
+
+**3. A different visibility scope is a different action.** Every action defaults to the narrowest scope: it works
+only in a team the caller belongs to. Reaching any team is not a flag on that endpoint. It is a separate endpoint
+under `/api/admin` with its own action (`SOLVE_ISSUE` and `ANY_TEAM_SOLVE_ISSUE`), held only by Admins. The same
+split applies to lists (`LIST_MY_TEAMS` and `LIST_ALL_TEAMS`). A test requires every team-scoped route to have an
+admin twin and checks that each one calls its own method, so a route cannot quietly gain wider reach.
+
+**4. Every endpoint checks the caller's role against its action.** The matrix maps each role to the set of
+actions it may perform, and anything not listed is denied (Observers read, Team Members read and write, Admins
+do everything). The first line of every use case is `rbac.require(actor, Action.X)`. For the narrow actions a
+second check, team membership, follows. Rules that depend on the particular meeting, such as only the
+facilitator advances or ends it and only an attendee rates it, are checked in the meeting service, because the
+role alone cannot decide them.
+
+**Inputs and responses.** Request bodies and parameters are validated at the API (for example, a score's
+`week_start` must be a Monday inside the 13-week window), and errors use consistent status codes: 403 for a
+refused role or team, 404 for a missing resource, 409 for a conflict, and 201 or 200 for Make it an Issue
+depending on whether it created the Issue or returned the existing one.
+
+**How it is proven.** The role-by-action matrix is unit-tested, access control is tested through real HTTP
+requests as each role, data visibility is tested against the seeded database, and the route-wiring test above
+guards the scope split.
+
+## How requests are secured
+
+Every request passes four steps, in this order, before any data is read or changed. A failure at any step stops
+the request with an error and nothing is touched.
+
+1. **Verify the JWT before the handler runs.** Each route depends on `get_current_user`
+   (`core/auth.py`), a FastAPI dependency, so it runs ahead of the handler body. It reads the
+   `Authorization: Bearer` header and verifies the token: the signature against `JWT_SECRET`, only the
+   configured algorithm, the expiry, and that the `sub` and `exp` claims are present. A missing, malformed,
+   tampered or expired token gets **401**.
+2. **Resolve the user and put it in the request context.** The user id in the token's `sub` claim is looked up in
+   the database on every request, so a user who was removed loses access at once, even with a valid token. The
+   resulting `User` is handed to the handler as `actor`. The same user id is also written to the request's
+   database transaction (`app.actor_id`), which is how the audit trail records who made each change.
+3. **Check the role against the action.** The handler passes `actor` to its use case, whose first line is
+   `rbac.require(actor, Action.X)`. The action is the one this endpoint performs, and a role that does not have it
+   gets **403**. For team-scoped actions a second check follows: the caller must be a member of the team in the
+   URL, otherwise **403**. Only the `/api/admin` endpoints skip the membership check, and only Admins hold those
+   actions.
+4. **The RBAC matrix is a map from role to allowed actions** (`core/permissions.py`). Observer, Team Member and
+   Admin each list exactly the actions they may perform, and anything not listed is denied. The checker is one
+   pure function, `role_can(role, action)`, which knows nothing about users or teams, so the matrix is unit-tested
+   on its own.
+
+Sign-in is by email only, with no password, because the seed has none. The token is signed with `JWT_SECRET`, whose
+default in `docker-compose.yml` is a development value and must be replaced in production.
+
 ## About the seed data
 
 - "Now" for the seed is **2026-11-11T15:00:00Z** (Wednesday, November 11, 2026, 9:00 AM Chicago). Your app reads "now" from `APP_NOW` and defaults to this value.
