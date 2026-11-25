@@ -17,58 +17,25 @@ function ScoreCell({
   value, status, editable, saving, onSave, onMakeIssue, label,
 }: {
   value: string | null; status: MeasurableStatus; editable: boolean; saving: boolean
-  /** Saves `n`, telling the server which stored value (`seen`) it is based on. Rejects if the cell had changed. */
-  onSave: (n: number, seen: number | null) => Promise<unknown>; onMakeIssue: () => void; label: string
+  onSave: (n: number) => void; onMakeIssue: () => void; label: string
 }) {
   const [draft, setDraft] = useState(fmtNum(value))
   const focused = useRef(false)
   const cancelled = useRef(false) // Escape: the blur that follows must not save
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const base = useRef<number | null>(num(value)) // the stored value our next save is based on
-  const inFlight = useRef(false)
-  const queued = useRef<number | null>(null) // an edit made while a save was running
-  const resync = useRef(false) // a save was refused: show the stored value even if the box still has focus
 
-  // Follow the stored value (a teammate's edit, or our own save coming back). Never overwrite what the user is
-  // typing, except after a refused save: then the box must show what is really stored.
+  // Follow the stored value (a teammate's edit, or our own save coming back), but never while this cell is
+  // being edited: that would overwrite what the user is typing.
   useEffect(() => {
-    base.current = num(value)
-    if (!focused.current || resync.current) {
-      setDraft(fmtNum(value))
-      resync.current = false
-    }
+    if (!focused.current) setDraft(fmtNum(value))
   }, [value])
   useEffect(() => () => clearTimeout(timer.current), [])
-
-  /** One save at a time per cell, each based on the value the previous one left: two quick edits must not
-   *  conflict with each other. A refused save drops anything queued behind it, since that was a stale view too. */
-  async function send(n: number) {
-    if (inFlight.current) {
-      queued.current = n
-      return
-    }
-    inFlight.current = true
-    try {
-      await onSave(n, base.current)
-      base.current = n
-    } catch {
-      queued.current = null
-      resync.current = true // the server said no (stale or otherwise); the refetch brings the stored value
-    } finally {
-      inFlight.current = false
-    }
-    if (queued.current !== null) {
-      const next = queued.current
-      queued.current = null
-      if (next !== base.current) void send(next)
-    }
-  }
 
   /** Saves a valid number that differs from what is stored. False when the text is empty or not a number. */
   function save(text: string): boolean {
     const n = text.trim() === '' ? null : Number(text)
     if (n === null || !Number.isFinite(n)) return false
-    if (n !== base.current) void send(n)
+    if (n !== num(value)) onSave(n)
     return true
   }
 
@@ -181,7 +148,7 @@ export default function ScorecardSection({ teamId }: { teamId: string }) {
                         editable={canWrite}
                         saving={setScore.isPending && setScore.variables?.measurableId === m.id && setScore.variables.week === w}
                         label={`${m.name}, week of ${weekLabel(w)}`}
-                        onSave={(value, seen) => setScore.mutateAsync({ measurableId: m.id, week: w, value, seen })}
+                        onSave={(value) => setScore.mutate({ measurableId: m.id, week: w, value })}
                         onMakeIssue={() => onMakeIssue(m.id, w)}
                       />
                     </TableCell>

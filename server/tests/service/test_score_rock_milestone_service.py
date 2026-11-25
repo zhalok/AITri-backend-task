@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.core.errors import DomainValidationError, StaleDataError
+from app.core.errors import DomainValidationError
 from app.modules.milestone.service import MilestoneService
 from app.modules.rock.service import RockService
 from app.modules.score.service import ScoreService
@@ -43,41 +43,6 @@ def test_set_score_accepts_the_oldest_and_the_current_week(clock, week):
     repo = FakeScoreRepo()
     ScoreService(repo, clock).set_score("m1", week, Decimal(1))
     assert len(repo.upserts) == 1
-
-
-def test_a_save_that_says_what_it_saw_is_written_when_the_cell_still_holds_it(clock):
-    w = date(2026, 11, 2)
-    repo = FakeScoreRepo([score("m1", w, "9")])
-    ScoreService(repo, clock).set_score("m1", w, Decimal(10), seen=Decimal(9))
-    assert repo.upserts == [("m1", w, Decimal(10))]
-
-
-def test_a_save_based_on_a_stale_view_is_refused_with_the_current_value_and_writes_nothing(clock):
-    w = date(2026, 11, 2)
-    repo = FakeScoreRepo([score("m1", w, "12")])  # a teammate already changed 9 to 12
-    with pytest.raises(StaleDataError) as e:
-        ScoreService(repo, clock).set_score("m1", w, Decimal(10), seen=Decimal(9))
-    assert e.value.status_code == 409 and e.value.extra == {"current": "12"}
-    assert "12" in e.value.message and repo.upserts == []
-
-
-def test_saving_into_a_cell_that_was_empty_when_seen_but_has_since_been_filled_is_refused(clock):
-    w = date(2026, 11, 2)
-    with pytest.raises(StaleDataError):
-        ScoreService(FakeScoreRepo([score("m1", w, "5")]), clock).set_score("m1", w, Decimal(10), seen=None)
-
-
-def test_saving_into_a_still_empty_cell_with_seen_none_is_written(clock):
-    repo = FakeScoreRepo()
-    ScoreService(repo, clock).set_score("m1", date(2026, 11, 2), Decimal(10), seen=None)
-    assert len(repo.upserts) == 1
-
-
-def test_without_a_seen_value_the_last_save_wins_even_if_the_cell_changed(clock):
-    w = date(2026, 11, 2)
-    repo = FakeScoreRepo([score("m1", w, "12")])
-    ScoreService(repo, clock).set_score("m1", w, Decimal(10))
-    assert repo.upserts == [("m1", w, Decimal(10))]
 
 
 def test_scores_by_measurable_groups_and_keeps_missing_measurables_empty(clock):

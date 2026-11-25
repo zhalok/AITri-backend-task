@@ -8,9 +8,6 @@ from app.modules.measurable.schemas import MeasurableOut
 
 class ScoreIn(BaseModel):
     value: Decimal = Field(allow_inf_nan=False, max_digits=18, decimal_places=4)
-    # The score the editor was looking at (null = an empty cell). Omit it and the last save wins; send it and
-    # the save is refused with 409 if someone changed the cell meanwhile.
-    seen: Decimal | None = Field(default=None, allow_inf_nan=False, max_digits=18, decimal_places=4)
 
 
 class ScoreOut(BaseModel):

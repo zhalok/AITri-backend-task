@@ -54,13 +54,9 @@ export function useSetScore(teamId: string) {
   const { scope } = useAuth()
   const qc = useQueryClient()
   return useMutation({
-    // `seen` is the score this edit was based on (null = an empty cell). If someone changed the cell meanwhile the
-    // server answers 409 and writes nothing; either way the cell is refetched so it shows what is stored.
-    mutationFn: (v: { measurableId: string; week: string; value: number; seen: number | null }) =>
-      api.put(`${scope}/measurables/${v.measurableId}/scores/${v.week}`, { value: v.value, seen: v.seen }),
-    // Not returned: the cell must not wait for the refetch before it can take the next edit.
-    onSuccess: () => void qc.invalidateQueries({ queryKey: key(teamId, 'scorecard') }),
-    onError: () => void qc.invalidateQueries({ queryKey: key(teamId, 'scorecard') }),
+    mutationFn: (v: { measurableId: string; week: string; value: number }) =>
+      api.put(`${scope}/measurables/${v.measurableId}/scores/${v.week}`, { value: v.value }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: key(teamId, 'scorecard') }),
   })
 }
 
@@ -88,11 +84,9 @@ export function useSetPriority(teamId: string) {
   const { scope } = useAuth()
   const qc = useQueryClient()
   return useMutation({
-    // `seen` is the priority this change was based on; a 409 means someone else changed it first.
-    mutationFn: (v: { issueId: string; priority: number | null; seen: number | null }) =>
-      api.patch<Issue>(`${scope}/issues/${v.issueId}/priority`, { priority: v.priority, seen: v.seen }),
+    mutationFn: (v: { issueId: string; priority: number | null }) =>
+      api.patch<Issue>(`${scope}/issues/${v.issueId}/priority`, { priority: v.priority }),
     onSuccess: () => qc.invalidateQueries({ queryKey: key(teamId, 'issues') }),
-    onError: () => qc.invalidateQueries({ queryKey: key(teamId, 'issues') }),
   })
 }
 

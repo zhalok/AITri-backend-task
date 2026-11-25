@@ -12,11 +12,6 @@ from app.modules.user.models import User
 router = APIRouter(tags=["issues"])
 
 
-def seen_arg(body: IssuePriorityUpdate) -> dict:
-    """`seen` is passed on only when the client sent it (even as null): absent means no check."""
-    return {"seen": body.seen} if "seen" in body.model_fields_set else {}
-
-
 @router.get("/teams/{team_id}/issues", response_model=list[IssueOut])
 def list_issues(
     team_id: str,
@@ -38,7 +33,7 @@ def create_issue(
 def set_priority(
     issue_id: str, body: IssuePriorityUpdate, actor: User = Depends(get_current_user), uc: IssueUseCase = Depends(get_issue_usecase)
 ):
-    return uc.set_priority(actor, issue_id, body.priority, **seen_arg(body))
+    return uc.set_priority(actor, issue_id, body.priority)
 
 
 @router.post("/issues/{issue_id}/solve", response_model=IssueOut)
@@ -79,7 +74,7 @@ def admin_create_issue(team_id: str, body: IssueCreate, actor: User = Depends(ge
 
 @admin_router.patch("/issues/{issue_id}/priority", response_model=IssueOut)
 def admin_set_priority(issue_id: str, body: IssuePriorityUpdate, actor: User = Depends(get_current_user), uc: IssueUseCase = Depends(get_issue_usecase)):
-    return uc.admin_set_priority(actor, issue_id, body.priority, **seen_arg(body))
+    return uc.admin_set_priority(actor, issue_id, body.priority)
 
 
 @admin_router.post("/issues/{issue_id}/solve", response_model=IssueOut)

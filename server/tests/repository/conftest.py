@@ -2,49 +2,16 @@
 constraints only exist there. The schema comes from the real Alembic migrations, so the migrations
 are tested too. Each test runs in a transaction that is rolled back; nothing leaks between tests.
 """
-import os
 from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.modules.team.models import Membership, Team
 from app.modules.user.models import User
 
 SERVER_DIR = Path(__file__).resolve().parents[2]
-
-
-@pytest.fixture(scope="session")
-def db_engine():
-    url = make_url(os.environ["DATABASE_URL"])
-    admin = create_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
-    try:
-        with admin.connect() as conn:
-            exists = conn.execute(text("select 1 from pg_database where datname = :n"), {"n": url.database}).scalar()
-            if not exists:
-                conn.execute(text(f'create database "{url.database}"'))
-    except OperationalError as exc:
-        pytest.fail(
-            f"Postgres is not reachable at {url.host}:{url.port}. Start it with: docker compose up -d --wait db\n{exc}",
-            pytrace=False,
-        )
-    finally:
-        admin.dispose()
-
-    engine = create_engine(url)
-    with engine.begin() as conn:  # fresh schema every run, then the real migrations
-        conn.execute(text("drop schema public cascade"))
-        conn.execute(text("create schema public"))
-    cfg = Config()
-    cfg.set_main_option("script_location", str(SERVER_DIR / "alembic"))
-    command.upgrade(cfg, "head")  # alembic/env.py reads DATABASE_URL, which conftest points at the test DB
-    yield engine
-    engine.dispose()
 
 
 @pytest.fixture

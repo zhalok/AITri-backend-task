@@ -14,9 +14,6 @@ class IssueCreate(BaseModel):
 
 class IssuePriorityUpdate(BaseModel):
     priority: Priority | None
-    # The priority the editor was looking at (null = none). Omit it and the last save wins; send it and the
-    # change is refused with 409 if someone else changed the priority meanwhile.
-    seen: Priority | None = None
 
 
 class IssueSolve(BaseModel):
@@ -31,6 +28,8 @@ class IssueOut(BaseModel):
     title: str
     priority: int | None
     created_at: datetime
+    # maybe we can have an uniqueness check on 
+    # solved_at, source_week_start and source_measurable_id
     solved_at: datetime | None
     resolution_note: str | None
     source_measurable_id: str | None
