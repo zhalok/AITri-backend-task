@@ -22,12 +22,14 @@ rules report.
    - [Fixture and clock strategy](#fixture-and-clock-strategy)
    - [Run all three at once](#run-all-three-at-once)
    - [Continuous integration (run all tests in CI)](#continuous-integration-run-all-tests-in-ci)
-3. [API design](#api-design)
-4. [How requests are secured](#how-requests-are-secured)
-5. [Real-time sync](#real-time-sync)
-6. [Audit trail](#audit-trail)
-7. [About the seed data](#about-the-seed-data)
-8. [Rules report format](#rules-report-format)
+3. [Decision record](#decision-record)
+   - [API design](#api-design)
+   - [How requests are secured](#how-requests-are-secured)
+   - [Real-time sync](#real-time-sync)
+   - [Concurrency control](#concurrency-control)
+   - [Audit trail](#audit-trail)
+4. [About the seed data](#about-the-seed-data)
+5. [Rules report format](#rules-report-format)
 
 ## Start the infrastructure
 
@@ -144,7 +146,52 @@ tab), so nobody has to run anything locally to see the result. The browser test 
 report and traces are uploaded as the `playwright-report` artifact of each run, and the container logs are printed if
 a run fails.
 
-## API design
+## Decision record
+
+The five decisions the brief leaves open (2.8), each with what I chose and what it costs. The five sections after
+them (API design, how requests are secured, real-time sync, concurrency control, audit trail) are the detail behind decisions 2 to 4.
+
+**1. Data model.** One table per entity (users, teams and memberships, measurables, scores, issues, to-dos,
+milestones, rocks, meetings, attendees, ratings, section timings), in Postgres, with the rules as constraints. A
+score is one row per measurable and week, so "last save wins" is a plain upsert. An Issue links to its source with
+two nullable columns, `source_measurable_id` and `source_week_start`, and a To-Do links to its Issue with
+`source_issue_id`; both also record the meeting they came from or were solved in (`created_in_meeting_id`,
+`solved_in_meeting_id`). Links are real foreign keys, not copies of text, so a title edit shows everywhere.
+*Tradeoff:* an Issue made from a score keeps pointing at the measurable and week even after the score changes, and
+computed values (status, averages, overdue) are never stored; they are derived from the data and the clock on every
+read, which keeps them correct at any date but costs a little work per request.
+
+**2. API design.** One module per resource, one endpoint per action, and a different visibility scope is a
+different action (`/api/teams/{id}/issues` for your team, `/api/admin/teams/{id}/issues` for any team). Each endpoint
+checks its role against the RBAC matrix before doing anything else. See [API design](#api-design) and
+[How requests are secured](#how-requests-are-secured). *Tradeoff:* more routes and a matrix to keep complete, in
+return for access rules you can read in one table; a wiring test fails if a team route has no admin twin.
+
+**3. Real-time transport, and who owns meeting state.** Postgres owns the state: the current section and when it
+started are columns on the meeting, and the timer is derived from them, so nothing lives only in a server process
+or a browser. Changes reach browsers by database trigger, Postgres `NOTIFY`, Redis pub/sub and a WebSocket that
+says only "something changed"; the browser refetches over REST. A socket that drops simply reconnects and refetches
+everything, so recovery needs no replay. See [Real-time sync](#real-time-sync). *Tradeoff:* one extra round trip per
+change, and a change made while the listener is down shows only at the next reconnect, in return for a protocol
+that cannot disagree with the database. Presence counts live in the API process, so more than one worker would need
+them in Redis.
+
+**4. Make it an Issue without duplicates.** The database enforces it, not the application: a partial unique index
+`uq_issue_unsolved_per_source` on `(source_measurable_id, source_week_start)` where the Issue is unsolved. The
+service inserts with `ON CONFLICT DO NOTHING`, and if nothing was inserted it returns the existing Issue (201 when
+created, 200 when returned). Concurrent requests therefore cannot create two, whatever the timing, and a solved
+Issue frees the slot for a new one. *Tradeoff:* a check-then-insert in code is simpler to read but races; the index
+costs one small index and a migration, and is proven by a test that fires three requests at once against real,
+separately committed transactions.
+
+**5. Keeping past meeting summaries unchanged.** Today a summary is assembled from the live data when it is
+requested, so a later edit to a score or an Issue would change an old summary. To freeze it, I would write the
+assembled summary as a JSON snapshot in a `meeting_summaries` row in the same transaction that ends the meeting,
+and serve that row afterwards. *Tradeoff:* a snapshot is exact and cheap to read but duplicates data and can't be
+corrected without a deliberate write; the alternative of replaying the audit trail to the meeting's end time needs no
+new table but is slower and harder to get right. This is described, not built.
+
+### API design
 
 The API is organised so that the answer to "who can do this?" can be read off one list, and so that the default
 can never leak data across teams.
@@ -209,7 +256,7 @@ codes. For example:
 requests as each role, data visibility is tested against the seeded database, and the route-wiring test above
 guards the scope split.
 
-## How requests are secured
+### How requests are secured
 
 Every request passes four steps, in this order, before any data is read or changed. A failure at any step stops
 the request with an error and nothing is touched.
@@ -247,7 +294,7 @@ flowchart LR
 Sign-in is by email only, with no password, because the seed has none. The token is signed with `JWT_SECRET`, whose
 default in `docker-compose.yml` is a development value and must be replaced in production.
 
-## Real-time sync
+### Real-time sync
 
 Meeting attendees see each other's changes live. There are two separate paths between the browser and
 the database, around the one Postgres: the HTTP path carries the data, the WebSocket path only carries "something changed".
@@ -304,7 +351,62 @@ In words:
 - **Limit.** The open-socket counts behind presence live in the API process, so more than one API worker would
   need them moved to Redis.
 
-## Audit trail
+### Concurrency control
+
+The brief asks for one thing here: concurrent Make it an Issue requests for the same score must produce one Issue.
+Everything else (scores, To-Dos, ratings) is "last save wins", and Postgres makes each of those writes atomic.
+
+**The rule.** For one measurable and one week there may be at most one *unsolved* Issue. Once it is solved, a new
+one may be made for the same cell.
+
+**The guarantee lives in the database.** A composite partial unique index:
+
+```sql
+CREATE UNIQUE INDEX uq_issue_unsolved_per_source
+    ON issues (source_measurable_id, source_week_start)
+    WHERE solved_at IS NULL AND source_measurable_id IS NOT NULL;
+```
+
+- The key is the pair `(source_measurable_id, source_week_start)`: which measurable, and the Monday of the score's
+  week (not the day the Issue was made).
+- The `WHERE solved_at IS NULL` part is what makes it *partial*. Solved Issues are outside the index, so they never
+  block a new Issue for the same cell, and any number of them can exist.
+- Issues not made from a score (`source_measurable_id` is null) are outside the index too.
+
+**How the code uses it.** The insert is `INSERT ... ON CONFLICT DO NOTHING RETURNING id`. If a row comes back, this
+request created the Issue and answers 201. If nothing comes back, another request got there first (or the Issue
+already existed), so the code reads the existing unsolved Issue and answers 200 with it.
+
+```mermaid
+sequenceDiagram
+    participant A as Request A
+    participant B as Request B
+    participant DB as Postgres (unique index)
+    A->>DB: INSERT ... ON CONFLICT DO NOTHING
+    B->>DB: INSERT ... ON CONFLICT DO NOTHING
+    DB-->>A: row inserted
+    DB-->>B: conflict, nothing inserted
+    A-->>A: 201 Created
+    B->>DB: read the unsolved Issue for this cell
+    DB-->>B: the Issue A created
+    B-->>B: 200 OK, same Issue
+```
+
+**Why not check first, then insert.** A lookup followed by an insert in code leaves a gap: two requests both see
+"none" and both insert. The index closes the gap because Postgres decides the winner when the row is written, and the
+loser's insert waits for the winner's transaction instead of failing the request. Even without `ON CONFLICT`, the
+second insert would be rejected with a unique violation; `DO NOTHING` just turns that rejection into a normal path
+we can answer from.
+
+**Cost.** One small index and a migration, a failed insert attempt on the losing request, and no application locks
+or retries to maintain.
+
+**How it is tested.** `server/tests/api_concurrency/test_make_it_an_issue.py` fires three requests at the same
+instant (a barrier releases the threads together) against a throwaway database with real, separately committed
+transactions, which the rolled-back API tests cannot give. It asserts one 201 and two 200s, one shared Issue id and
+exactly one row. A second test solves the Issue and asserts that a new request then creates a different Issue.
+
+### Audit trail
 
 Every change to scores, issues, to-dos and meetings is recorded in the `audit_events` table by a database trigger.
 That is what makes concurrent updates auditable: if two people overwrite each other, the table shows who changed
