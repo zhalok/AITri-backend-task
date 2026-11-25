@@ -168,6 +168,84 @@ the request with an error and nothing is touched.
 Sign-in is by email only, with no password, because the seed has none. The token is signed with `JWT_SECRET`, whose
 default in `docker-compose.yml` is a development value and must be replaced in production.
 
+## Real-time sync
+
+Meeting attendees see each other's changes live. The pipeline is change data capture in Postgres, a Redis
+pub/sub hop, and a WebSocket to the browser:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Browser A (writer)
+    participant API as API (FastAPI)
+    participant DB as Postgres
+    participant L as Change listener (in the API)
+    participant R as Redis pub/sub
+    participant B as Browser B (in the meeting)
+
+    B->>API: WebSocket /ws/teams/{id}/meeting, first frame {auth, token}
+    API->>API: verify JWT, check team membership
+    API->>R: SUBSCRIBE team:{id}
+    API-->>B: {"type": "ready"}
+    B->>API: GET the meeting, scorecard, issues, to-dos (REST)
+
+    A->>API: REST write (e.g. advance the agenda)
+    API->>DB: UPDATE, then COMMIT
+    Note over DB: after-row trigger calls pg_notify("team_changes", {team_id, kind}). It is delivered only on commit.
+    DB-->>L: NOTIFY team_changes
+    L->>R: PUBLISH team:{id} {"kind": "meeting"}
+    R-->>API: message for every socket subscribed to team:{id}
+    API-->>B: {"type": "change", "kind": "meeting"}
+    B->>API: GET the changed data (REST, with the usual role and team checks)
+```
+
+- **Capture in the database.** Row triggers on `scores`, `measurables`, `issues`, `todos`, `meetings`,
+  `meeting_attendees`, `meeting_ratings` and `meeting_sections` call `pg_notify` with `{team_id, kind}`. Postgres
+  delivers a NOTIFY only when the transaction commits, so a rolled-back write is never announced, and it fires for
+  any writer (the API, the seed script, psql), not only for code that remembered to publish.
+- **Two hops.** The listener (`forward_changes`, one task per API process) turns each NOTIFY into a Redis
+  `PUBLISH` on `team:{id}`. Redis lets every API worker serve its own sockets, not just the worker that took the write.
+- **Events carry no data**, only what kind of thing changed. The browser refetches through the REST API, so every
+  read still goes through authentication, the role check and the team scope. A socket can never reveal anything a
+  REST call would refuse.
+- **Catching up.** The socket subscribes to Redis before it sends `ready`, and the browser refetches everything on
+  every (re)connect, so a dropped socket cannot leave it stale. Events are not replayed: a change that happens
+  while the listener is down is missed by the live feed, and the page shows it at the next reconnect, refocus or
+  navigation.
+- **The WebSocket is the attendance.** A user is in a meeting while a socket on `/ws/teams/{id}/meeting` is open;
+  their last socket closing leaves it. Only the Meeting page opens this socket. The Team page opens none, so a
+  team with nobody in a meeting produces no live traffic, at the price that an open Team page refreshes on focus and
+  navigation, not on its own. A second endpoint, `/ws/teams/{id}/sync`, carries the same feed without presence and is
+  used only while looking for a running meeting.
+- **Limit.** The open-socket counts behind presence live in the API process, so more than one API worker would
+  need them moved to Redis.
+
+## Audit trail
+
+Every change to scores, issues, to-dos and meetings is recorded, so a lost update or a race can be investigated
+after the fact. It is a second trigger on the same tables, deliberately separate from the real-time path:
+
+```mermaid
+flowchart LR
+    REQ["Request (JWT verified)"] -->|"set_config('app.actor_id', user id), transaction-local"| TX
+    subgraph TX ["One database transaction"]
+        W["INSERT / UPDATE / DELETE on scores, issues, todos or meetings"]
+        W -->|"after-row trigger audit_change()"| E[("audit_events: operation, old row, new row, team, actor, transaction id")]
+    end
+    TX -->|COMMIT| OK["Change and its audit row both exist"]
+    TX -.->|ROLLBACK| NONE["Neither exists"]
+    ADMIN["Admin: GET /api/audit-events"] --> E
+```
+
+- **Written by the database, in the same transaction.** If the write commits its audit row commits with it, and if it
+  rolls back they vanish together. Nothing depends on a listener being up (unlike the NOTIFY path, which can lose
+  events while disconnected), and the payload has no size limit. Writes made outside the API are covered too.
+- **Who did it.** The API sets the transaction-local setting `app.actor_id` to the authenticated user, and the
+  trigger copies it into the row.
+- **Append-only, enforced by the database.** Triggers on `audit_events` refuse `UPDATE`, `DELETE` and `TRUNCATE`.
+  An `UPDATE` that changes nothing is not recorded.
+- **Read access** is one admin-only endpoint, `GET /api/audit-events`. There is no screen for it.
+
 ## About the seed data
 
 - "Now" for the seed is **2026-11-11T15:00:00Z** (Wednesday, November 11, 2026, 9:00 AM Chicago). Your app reads "now" from `APP_NOW` and defaults to this value.
