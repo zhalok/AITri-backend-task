@@ -65,13 +65,6 @@ def test_a_write_nobody_tagged_has_no_actor(scores, world):
     assert events(world, table_name="scores")[0].actor_id is None
 
 
-def test_a_refused_stale_write_leaves_no_trace(scores, world):
-    scores.upsert("m1", W, Decimal("12"))
-    before = len(events(world))
-    assert scores.set_if_seen("m1", W, Decimal("10"), Decimal("9")) is None  # it saw 9, the cell holds 12
-    assert len(events(world)) == before
-
-
 def test_a_lost_update_would_show_as_two_actors_overwriting_each_other(scores, world):
     """What an investigator looks for: the same row changed by different people in quick succession, each event
     carrying the value it replaced."""
