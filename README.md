@@ -170,34 +170,53 @@ default in `docker-compose.yml` is a development value and must be replaced in p
 
 ## Real-time sync
 
-Meeting attendees see each other's changes live. The pipeline is change data capture in Postgres, a Redis
-pub/sub hop, and a WebSocket to the browser:
+Meeting attendees see each other's changes live. There are two separate paths between the browser and the
+database: one carries the data, the other only carries "something changed".
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant A as Browser A (writer)
-    participant API as API (FastAPI)
-    participant DB as Postgres
-    participant L as Change listener (in the API)
-    participant R as Redis pub/sub
-    participant B as Browser B (in the meeting)
+flowchart LR
+    C["Browser"]
 
-    B->>API: WebSocket /ws/teams/{id}/meeting, first frame {auth, token}
-    API->>API: verify JWT, check team membership
-    API->>R: SUBSCRIBE team:{id}
-    API-->>B: {"type": "ready"}
-    B->>API: GET the meeting, scorecard, issues, to-dos (REST)
+    subgraph DATA ["Path 1: the data (HTTP)"]
+        direction LR
+        H["HTTP endpoint (REST API)"]
+        P1[("Postgres")]
+        H <--> P1
+    end
 
-    A->>API: REST write (e.g. advance the agenda)
-    API->>DB: UPDATE, then COMMIT
-    Note over DB: after-row trigger calls pg_notify("team_changes", {team_id, kind}). It is delivered only on commit.
-    DB-->>L: NOTIFY team_changes
-    L->>R: PUBLISH team:{id} {"kind": "meeting"}
-    R-->>API: message for every socket subscribed to team:{id}
-    API-->>B: {"type": "change", "kind": "meeting"}
-    B->>API: GET the changed data (REST, with the usual role and team checks)
+    subgraph LIVE ["Path 2: the live signal (WebSocket)"]
+        direction LR
+        W["WebSocket endpoint"]
+        R["Redis pub/sub"]
+        D["CDC listener"]
+        P2[("Postgres")]
+        P2 -->|"NOTIFY on commit"| D
+        D -->|"PUBLISH team:id"| R
+        R -->|"message"| W
+    end
+
+    C <-->|"read and write"| H
+    W -->|"change event"| C
+    C -->|"login token, once"| W
 ```
+
+Arrows show which way each message travels. Path 1 is a request and a response. In path 2 the signal only travels
+one way, from the database towards the browser.
+
+In words:
+
+1. **Reading and writing always goes over HTTP.** `browser <> HTTP endpoint <> Postgres`. Every read and every write is
+   a normal REST call with the usual login, role and team checks.
+2. **The WebSocket never carries data**, only the news that something changed:
+   `Postgres > CDC listener > Redis pub/sub > WebSocket endpoint > browser`.
+3. **When someone writes** (say the facilitator advances the agenda): the write goes in over HTTP and Postgres commits
+   it. A trigger in Postgres sends a notification (that is the change capture, the "CDC"). The CDC listener hears it
+   and publishes it to Redis on the channel `team:{id}`. Redis hands it to every WebSocket endpoint subscribed to that
+   team, and each one tells its browser `{"type": "change", "kind": "meeting"}`.
+4. **The other browser reacts** by asking the HTTP endpoint for the changed data. That read is checked like any
+   other read.
+5. **Connecting.** A browser opens the WebSocket, sends its login token as the first message, is checked for
+   membership in the team, subscribes to the team's Redis channel, and gets `ready`. It then fetches everything once.
 
 - **Capture in the database.** Row triggers on `scores`, `measurables`, `issues`, `todos`, `meetings`,
   `meeting_attendees`, `meeting_ratings` and `meeting_sections` call `pg_notify` with `{team_id, kind}`. Postgres
