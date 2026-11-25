@@ -28,8 +28,6 @@ class IssueOut(BaseModel):
     title: str
     priority: int | None
     created_at: datetime
-    # maybe we can have an uniqueness check on 
-    # solved_at, source_week_start and source_measurable_id
     solved_at: datetime | None
     resolution_note: str | None
     source_measurable_id: str | None
