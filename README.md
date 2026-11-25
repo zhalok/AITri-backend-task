@@ -90,6 +90,19 @@ finishes, so it can be run again on the same stack. Playwright saves a trace of 
 `npx playwright show-trace <path>/trace.zip`. A trace of a failing run (Redis stopped, so the second browser
 cannot follow) is kept in `client/e2e/artifacts/failure-trace-no-redis.zip`.
 
+### Fixture and clock strategy
+
+- **Clock.** Business time never comes from the system clock. It comes from `APP_NOW`, pinned to the seed's "now"
+  (2026-11-11T15:00:00Z, company time America/Chicago) by the test setup (`server/tests/conftest.py`) and, for the
+  end-to-end test, by `docker-compose.yml`. The current week, the 13-week window and overdue To-Dos are therefore
+  the same on every run, on any day. Unit tests build a clock at any instant they need to hit a boundary. Only token
+  expiry and live meeting timestamps use the real clock, on purpose.
+- **Fixture.** Tests start from the real `seed.json`, loaded into a Postgres built from the real migrations, in
+  databases of their own (`l10_test`, `l10_concurrency`), never the dev one. The shared API tests load the seed once and
+  roll back each test's writes. The concurrency tests need real commits, so they get a throwaway database. The
+  end-to-end test runs on the freshly seeded stack and ends the meeting it starts (and one left by an aborted run), so
+  it can be run again.
+
 ## API design
 
 The API is organised so that the answer to "who can do this?" can be read off one list, and so that the default
