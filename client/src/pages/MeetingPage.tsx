@@ -81,7 +81,7 @@ function MeetingRoom({ teamId, meetingId }: { teamId: string; meetingId: string 
         <h1 className="text-xl font-semibold tracking-tight">
           {teams.data?.find((t) => t.id === teamId)?.name ?? 'Team'} · Level 10 Meeting
         </h1>
-        <Badge variant={ended ? 'secondary' : 'default'}>{ended ? 'Ended' : SECTION_LABEL[section]}</Badge>
+        <Badge data-testid="current-section" variant={ended ? 'secondary' : 'default'}>{ended ? 'Ended' : SECTION_LABEL[section]}</Badge>
         <span className="text-sm text-muted-foreground">Facilitator: {facilitator}</span>
         {!isFacilitator && !ended && (
           <Button className="ml-auto" variant="outline" onClick={leaveMeeting}>
